@@ -33,6 +33,23 @@ export interface ConfigFile extends SyncedConfig {
 	version: 1;
 }
 
+/** One note's change within an undoable action. An `undefined` value means the property was absent. */
+export interface UndoEntry {
+	oldPath: string;
+	newPath: string;
+	propertyName: string;
+	oldValue: unknown;
+	newValue: unknown;
+}
+
+/** A single undoable action; a batch is one action with many entries. */
+export interface UndoAction {
+	label: string;
+	entries: UndoEntry[];
+	/** Things undo cannot restore, reported to the user (for example a note sent to the trash). */
+	caveats: string[];
+}
+
 export const CONFIG_FILE_VERSION = 1;
 export const CONFIG_FILE_NAME = "folder.json";
 export const OPT_OUT_PROPERTY = "skip-allocator";

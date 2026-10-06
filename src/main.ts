@@ -1,6 +1,10 @@
-import { Plugin } from "obsidian";
+import { Plugin, TFile } from "obsidian";
 import { sanitiseSettings } from "./core/defaults";
+import { Allocator } from "./services/allocator";
 import { JsonSync } from "./services/jsonSync";
+import { MovingGuard } from "./services/movingGuard";
+import { UndoStack } from "./services/undo";
+import { VaultOps } from "./services/vaultOps";
 import { AllocatorSettingTab } from "./settings";
 import type { AllocatorSettings, ConfigFile } from "./types";
 
@@ -10,6 +14,9 @@ const FOCUS_SYNC_INTERVAL_MS = 5000;
 export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	settings!: AllocatorSettings;
 	jsonSync!: JsonSync;
+	allocator!: Allocator;
+	readonly guard = new MovingGuard();
+	readonly undoStack = new UndoStack();
 	private lastFocusSync = 0;
 
 	async onload(): Promise<void> {
@@ -19,8 +26,18 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 			getSettings: () => this.settings,
 			adoptFileConfig: (config) => this.adoptFileConfig(config),
 		});
+		this.allocator = new Allocator(
+			{
+				app: this.app,
+				getSettings: () => this.settings,
+				commitSettings: () => this.commitSettings(),
+			},
+			new VaultOps(this.app, this.guard),
+			this.undoStack,
+		);
 
 		this.addSettingTab(new AllocatorSettingTab(this.app, this));
+		this.registerCommands();
 
 		// Hidden-file changes raise no vault events, so sync on load and on focus.
 		this.app.workspace.onLayoutReady(() => {
@@ -34,6 +51,32 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 			this.lastFocusSync = now;
 			void this.jsonSync.sync();
 		});
+	}
+
+	/** Commands are given no default hotkeys; the user assigns them in Settings, Hotkeys. */
+	private registerCommands(): void {
+		this.addCommand({
+			id: "file-by-domain",
+			name: "File note by domain",
+			checkCallback: (checking) => this.withActiveNote(checking, (file) => this.allocator.fileByDomain(file)),
+		});
+		this.addCommand({
+			id: "set-domain-from-folder",
+			name: "Set domain from folder",
+			checkCallback: (checking) =>
+				this.withActiveNote(checking, (file) => this.allocator.setDomainFromFolder(file)),
+		});
+	}
+
+	private withActiveNote(checking: boolean, action: (file: TFile) => Promise<void>): boolean {
+		const file = this.app.workspace.getActiveFile();
+		if (!(file instanceof TFile) || file.extension !== "md") {
+			return false;
+		}
+		if (!checking) {
+			void action(file);
+		}
+		return true;
 	}
 
 	/** Saves settings after a user change, stamps them as newest and mirrors them to the data file. */

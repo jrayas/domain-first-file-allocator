@@ -1,1 +1,58 @@
 /* Domain First File Allocator */
+
+.dffa-button-row {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.dffa-button-row button,
+.dffa-choice-list button {
+	min-height: 44px;
+}
+
+.dffa-button-row button {
+	flex: 1 1 auto;
+}
+
+.dffa-choice-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.dffa-choice-list button {
+	width: 100%;
+	height: auto;
+	padding: 10px 14px;
+	text-align: left;
+	white-space: normal;
+}
+
+.dffa-compare {
+	margin: 8px 0 12px;
+	overflow-wrap: anywhere;
+}
+
+.dffa-checkbox {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+}
+
+.dffa-text-input {
+	width: 100%;
+	min-height: 44px;
+}
+
+.dffa-error {
+	color: var(--text-error);
+}
+
+.dffa-muted {
+	color: var(--text-muted);
+}
