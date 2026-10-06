@@ -6,6 +6,32 @@ export interface DomainEntry {
 	/** Full vault-relative folder path, which is also the domain value. */
 	folder: string;
 	enabled: boolean;
+	/** False keeps this domain out of automatic filing. Absent means allowed. */
+	allowAuto?: boolean;
+}
+
+export type NoticeLevel = "all" | "important" | "errors";
+export type AskOrAuto = "ask" | "auto";
+export type UnknownDomainAction = "ask" | "fallback" | "add";
+export type MultipleValuesAction = "ask" | "first";
+export type NameClashPolicy = "ask" | "keep-both" | "skip";
+export type ConflictPolicy = "newest" | "settings" | "file" | "ask";
+export type UndoDepth = 1 | 5 | 10;
+export type PromptPreset = "cautious" | "balanced" | "hands-off" | "custom";
+
+/** How each popup behaves. Destructive confirmations (Replace, Import) are not listed: they always ask. */
+export interface PromptSettings {
+	unknownDomain: UnknownDomainAction;
+	multipleValues: MultipleValuesAction;
+	/** Set domain from folder, when the folder is not yet a domain. */
+	registerFolder: AskOrAuto;
+	/** A missing domain folder that needs creating. */
+	createFolder: AskOrAuto;
+	/** The preview shown after a domain folder is renamed or moved. */
+	renamePreview: AskOrAuto;
+	nameClash: NameClashPolicy;
+	/** Batches smaller than this skip the preview, when previews are set to automatic. */
+	previewThreshold: number;
 }
 
 export interface FallbackSettings {
@@ -20,6 +46,12 @@ export interface AutomaticSettings {
 	delaySeconds: number;
 	/** Also send new or domainless notes to the fallback folder. */
 	includeNoDomain: boolean;
+	/** Only file notes that currently sit in the fallback folder. */
+	onlyInFallback: boolean;
+	/** Never move the note that is open in the editor. */
+	skipOpenNote: boolean;
+	/** No notice when a note is filed automatically; skips and errors still show. */
+	quiet: boolean;
 }
 
 /** The part of the settings that is mirrored to the JSON file. */
@@ -30,6 +62,14 @@ export interface SyncedConfig {
 	excludeFolders: string[];
 	folderMovePrompt: FolderMovePrompt;
 	automatic: AutomaticSettings;
+	prompts: PromptSettings;
+	notices: NoticeLevel;
+	/** The frontmatter flag that makes the plugin ignore a note. */
+	optOutProperty: string;
+	/** Rewrite a note's domain to the folder's real casing when filing. */
+	writeCanonicalCasing: boolean;
+	conflictPolicy: ConflictPolicy;
+	undoDepth: UndoDepth;
 	domains: DomainEntry[];
 }
 

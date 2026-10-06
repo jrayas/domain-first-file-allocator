@@ -1,5 +1,5 @@
 import type { DomainEntry } from "../types";
-import { isSameOrInside, normaliseFolderPath, pathKey, replacePrefix } from "./paths";
+import { isExcluded, isSameOrInside, normaliseFolderPath, pathKey, replacePrefix } from "./paths";
 
 export type DomainLookup =
 	| { status: "enabled"; entry: DomainEntry }
@@ -66,7 +66,11 @@ export function deduplicateRegistry(registry: readonly DomainEntry[]): RegistryD
 			continue;
 		}
 		seen.add(key);
-		result.push({ folder, enabled: entry.enabled });
+		result.push({
+			folder,
+			enabled: entry.enabled,
+			...(entry.allowAuto === false ? { allowAuto: false } : {}),
+		});
 	}
 	return { registry: result, duplicates };
 }
@@ -131,4 +135,50 @@ export function rewriteRawDomainProperty(raw: unknown, oldPath: string, newPath:
 		return { changed, value };
 	}
 	return { changed: false, value: raw };
+}
+
+/** True unless the domain has been kept out of automatic filing. */
+export function isAutoAllowed(entry: DomainEntry): boolean {
+	return entry.allowAuto !== false;
+}
+
+export interface BulkAddOptions {
+	/** The folder whose subfolders are offered. */
+	parent: string;
+	/** Include every level below the parent, not only its direct children. */
+	recursive: boolean;
+	excludeFolders: readonly string[];
+	dataFolderName: string;
+}
+
+/**
+ * Picks the subfolders of `parent` that could be registered: not the parent
+ * itself, not already registered, not excluded. Results are sorted and keep the
+ * casing of `allFolders`.
+ */
+export function subfoldersToAdd(
+	registry: readonly DomainEntry[],
+	allFolders: readonly string[],
+	options: BulkAddOptions,
+): string[] {
+	const parentKey = pathKey(options.parent);
+	const registered = new Set(registry.map((entry) => pathKey(entry.folder)));
+	const chosen: string[] = [];
+	for (const raw of allFolders) {
+		const folder = normaliseFolderPath(raw);
+		const key = folder.toLowerCase();
+		if (key === "" || !isSameOrInside(folder, options.parent) || key === parentKey) {
+			continue;
+		}
+		const depthBelowParent = key.slice(parentKey.length + 1).split("/").length;
+		if (!options.recursive && depthBelowParent > 1) {
+			continue;
+		}
+		if (registered.has(key) || isExcluded(folder, options.excludeFolders, options.dataFolderName)) {
+			continue;
+		}
+		registered.add(key);
+		chosen.push(folder);
+	}
+	return chosen.sort((a, b) => a.localeCompare(b));
 }

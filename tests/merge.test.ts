@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { configsEqual, decideSync, summariseChanges } from "../src/core/merge";
+import { createDefaultAutomatic } from "../src/core/preferences";
+import { createDefaultGeneral, createDefaultPrompts } from "../src/core/preferences";
 import type { SyncedConfig } from "../src/types";
 
 function config(overrides: Partial<SyncedConfig> = {}): SyncedConfig {
@@ -9,7 +11,9 @@ function config(overrides: Partial<SyncedConfig> = {}): SyncedConfig {
 		fallback: { enabled: true, folder: "Inbox" },
 		excludeFolders: ["Templates"],
 		folderMovePrompt: "ask",
-		automatic: { enabled: false, delaySeconds: 2, includeNoDomain: false },
+		automatic: { ...createDefaultAutomatic(), enabled: false, delaySeconds: 2, includeNoDomain: false },
+		prompts: createDefaultPrompts(),
+		...createDefaultGeneral(),
 		domains: [{ folder: "Areas/Finance", enabled: true }],
 		...overrides,
 	};
@@ -27,13 +31,13 @@ describe("configsEqual", () => {
 		expect(configsEqual(config(), config({ excludeFolders: [] }))).toBe(false);
 		expect(configsEqual(config(), config({ excludeFolders: ["Other"] }))).toBe(false);
 		expect(
-			configsEqual(config(), config({ automatic: { enabled: true, delaySeconds: 2, includeNoDomain: false } })),
+			configsEqual(config(), config({ automatic: { ...createDefaultAutomatic(), enabled: true, delaySeconds: 2, includeNoDomain: false } })),
 		).toBe(false);
 		expect(
-			configsEqual(config(), config({ automatic: { enabled: false, delaySeconds: 5, includeNoDomain: false } })),
+			configsEqual(config(), config({ automatic: { ...createDefaultAutomatic(), enabled: false, delaySeconds: 5, includeNoDomain: false } })),
 		).toBe(false);
 		expect(
-			configsEqual(config(), config({ automatic: { enabled: false, delaySeconds: 2, includeNoDomain: true } })),
+			configsEqual(config(), config({ automatic: { ...createDefaultAutomatic(), enabled: false, delaySeconds: 2, includeNoDomain: true } })),
 		).toBe(false);
 		expect(configsEqual(config(), config({ domains: [] }))).toBe(false);
 		expect(configsEqual(config(), config({ domains: [{ folder: "Areas/Finance", enabled: false }] }))).toBe(false);
@@ -101,10 +105,10 @@ describe("summariseChanges", () => {
 	it("describes automatic filing changes", () => {
 		const lines = summariseChanges(
 			config(),
-			config({ automatic: { enabled: true, delaySeconds: 10, includeNoDomain: true } }),
+			config({ automatic: { ...createDefaultAutomatic(), enabled: true, delaySeconds: 10, includeNoDomain: true } }),
 		).join("\n");
 		expect(lines).toContain("Automatic filing will be turned on");
-		expect(lines).toContain("2 s becomes 10 s");
+		expect(lines).toContain("delay (seconds): 2 becomes 10");
 		expect(lines).toContain("notes with no domain will be turned on");
 	});
 });

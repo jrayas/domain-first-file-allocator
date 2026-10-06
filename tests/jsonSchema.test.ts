@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { clampDelay, createDefaultSettings, readAutomatic, sanitiseSettings } from "../src/core/defaults";
+import { createDefaultSettings, sanitiseSettings } from "../src/core/defaults";
+import { clampDelay, createDefaultAutomatic, readAutomatic } from "../src/core/preferences";
 import { parseConfigJson, serialiseConfig } from "../src/core/jsonSchema";
 
 const valid = {
@@ -51,10 +52,10 @@ describe("parseConfigJson", () => {
 		["excludeFolders items", { excludeFolders: [1] }],
 		["folderMovePrompt", { folderMovePrompt: "sometimes" }],
 		["automatic type", { automatic: "on" }],
-		["automatic enabled", { automatic: { enabled: 1, delaySeconds: 2, includeNoDomain: false } }],
-		["automatic delay too small", { automatic: { enabled: true, delaySeconds: 0, includeNoDomain: false } }],
-		["automatic delay too large", { automatic: { enabled: true, delaySeconds: 61, includeNoDomain: false } }],
-		["automatic includeNoDomain", { automatic: { enabled: true, delaySeconds: 2 } }],
+		["automatic enabled", { automatic: { ...createDefaultAutomatic(), enabled: 1, delaySeconds: 2, includeNoDomain: false } }],
+		["automatic delay too small", { automatic: { ...createDefaultAutomatic(), enabled: true, delaySeconds: 0, includeNoDomain: false } }],
+		["automatic delay too large", { automatic: { ...createDefaultAutomatic(), enabled: true, delaySeconds: 61, includeNoDomain: false } }],
+		["automatic includeNoDomain", { automatic: { enabled: true, includeNoDomain: "yes" } }],
 		["domains", { domains: {} }],
 		["domain entry", { domains: [{ folder: "A" }] }],
 		["domain entry type", { domains: ["A"] }],
@@ -63,11 +64,11 @@ describe("parseConfigJson", () => {
 	});
 	it("defaults the optional automatic block when it is absent", () => {
 		const result = parse(valid);
-		expect(result.ok && result.config.automatic).toEqual({ enabled: false, delaySeconds: 2, includeNoDomain: false });
+		expect(result.ok && result.config.automatic).toEqual({ ...createDefaultAutomatic(), enabled: false, delaySeconds: 2, includeNoDomain: false });
 	});
 	it("reads a valid automatic block and rounds the delay", () => {
 		const result = parse({ ...valid, automatic: { enabled: true, delaySeconds: 3.6, includeNoDomain: true } });
-		expect(result.ok && result.config.automatic).toEqual({ enabled: true, delaySeconds: 4, includeNoDomain: true });
+		expect(result.ok && result.config.automatic).toEqual({ ...createDefaultAutomatic(), enabled: true, delaySeconds: 4, includeNoDomain: true });
 	});
 	it("repairs duplicate domains with a warning", () => {
 		const result = parse({
@@ -96,7 +97,7 @@ describe("serialiseConfig", () => {
 	it("round-trips through the parser", () => {
 		const settings = createDefaultSettings(new Date("2026-10-07T12:00:00.000Z"));
 		settings.domains = [{ folder: "Areas/Finance", enabled: false }];
-		settings.automatic = { enabled: true, delaySeconds: 7, includeNoDomain: true };
+		settings.automatic = { ...createDefaultAutomatic(), enabled: true, delaySeconds: 7, includeNoDomain: true };
 		const result = parseConfigJson(serialiseConfig(settings));
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -155,11 +156,10 @@ describe("automatic settings helpers", () => {
 		expect(clampDelay(Number.NaN)).toBe(2);
 	});
 	it("reads automatic settings field by field", () => {
-		expect(readAutomatic(undefined)).toEqual({ enabled: false, delaySeconds: 2, includeNoDomain: false });
+		expect(readAutomatic(undefined)).toEqual({ ...createDefaultAutomatic(), enabled: false, delaySeconds: 2, includeNoDomain: false });
 		expect(readAutomatic({ enabled: true, delaySeconds: "x", includeNoDomain: 1 })).toEqual({
+			...createDefaultAutomatic(),
 			enabled: true,
-			delaySeconds: 2,
-			includeNoDomain: false,
 		});
 		expect(readAutomatic({ delaySeconds: 99 }).delaySeconds).toBe(60);
 	});

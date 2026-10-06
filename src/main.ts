@@ -1,5 +1,5 @@
 import { Notice, Plugin, TFile, type Menu } from "obsidian";
-import { sanitiseSettings } from "./core/defaults";
+import { sanitiseSettings, settingsFromConfig } from "./core/defaults";
 import { Allocator } from "./services/allocator";
 import { AutoFiler } from "./services/autoFiler";
 import { BatchRunner } from "./services/batch";
@@ -11,6 +11,7 @@ import { VaultOps } from "./services/vaultOps";
 import { AllocatorSettingTab } from "./settings";
 import { DecisionModal } from "./ui/DecisionModal";
 import type { AllocatorSettings, ConfigFile } from "./types";
+import { SyncConflictModal } from "./ui/SyncConflictModal";
 
 /** Minimum gap between syncs triggered by the window regaining focus. */
 const FOCUS_SYNC_INTERVAL_MS = 5000;
@@ -35,6 +36,8 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		this.jsonSync = new JsonSync(this.app, {
 			getSettings: () => this.settings,
 			adoptFileConfig: (config) => this.adoptFileConfig(config),
+			chooseConflictSide: (filePath, differences) =>
+				new SyncConflictModal(this.app, filePath, differences).ask(),
 		});
 		const host = {
 			app: this.app,
@@ -169,16 +172,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	}
 
 	private async adoptFileConfig(config: ConfigFile): Promise<void> {
-		this.settings = {
-			updatedAt: config.updatedAt,
-			propertyName: config.propertyName,
-			fallback: config.fallback,
-			excludeFolders: config.excludeFolders,
-			folderMovePrompt: config.folderMovePrompt,
-			automatic: config.automatic,
-			domains: config.domains,
-			dataFolderName: this.settings.dataFolderName,
-		};
+		this.settings = settingsFromConfig(config, this.settings.dataFolderName);
 		await this.saveData(this.settings);
 		this.refreshRibbon();
 	}

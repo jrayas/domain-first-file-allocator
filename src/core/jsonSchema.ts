@@ -1,26 +1,19 @@
-import { CONFIG_FILE_VERSION, type ConfigFile, type SyncedConfig } from "../types";
-import {
-	MAX_AUTO_DELAY_SECONDS,
-	MIN_AUTO_DELAY_SECONDS,
-	createDefaultAutomatic,
-	isFolderMovePrompt,
-	isIsoTimestamp,
-} from "./defaults";
+import { CONFIG_FILE_VERSION, type ConfigFile, type DomainEntry, type SyncedConfig } from "../types";
+import { isFolderMovePrompt, isIsoTimestamp } from "./defaults";
 import { normaliseFolderPath } from "./paths";
+import { isRecord, parseAutomatic, parseGeneral, parsePrompts } from "./preferences";
 import { deduplicateRegistry } from "./registry";
 
 export type ParseResult =
 	| { ok: true; config: ConfigFile; warnings: string[] }
 	| { ok: false; error: string };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
  * Strictly validates the text of the JSON file. Malformed content and unknown
  * versions are errors; the caller must then leave the file untouched.
  * Harmless oddities (duplicate domains) are repaired and reported as warnings.
+ * Every preference added after the first release is optional, so older files
+ * still load and take the defaults.
  */
 export function parseConfigJson(text: string): ParseResult {
 	let raw: unknown;
@@ -66,40 +59,32 @@ export function parseConfigJson(text: string): ParseResult {
 		return { ok: false, error: '"domains" must be a list.' };
 	}
 
-	// "automatic" is optional, so files written before it existed still load.
-	let automatic = createDefaultAutomatic();
-	if (raw.automatic !== undefined) {
-		const candidate = raw.automatic;
+	const automatic = parseAutomatic(raw.automatic);
+	const prompts = parsePrompts(raw.prompts);
+	const general = parseGeneral(raw);
+	const optionalErrors = [...automatic.errors, ...prompts.errors, ...general.errors];
+	if (optionalErrors.length > 0) {
+		return { ok: false, error: optionalErrors.join(" ") };
+	}
+
+	const domains: DomainEntry[] = [];
+	for (const [index, item] of (raw.domains as unknown[]).entries()) {
 		if (
-			!isRecord(candidate) ||
-			typeof candidate.enabled !== "boolean" ||
-			typeof candidate.includeNoDomain !== "boolean" ||
-			typeof candidate.delaySeconds !== "number" ||
-			!Number.isFinite(candidate.delaySeconds) ||
-			candidate.delaySeconds < MIN_AUTO_DELAY_SECONDS ||
-			candidate.delaySeconds > MAX_AUTO_DELAY_SECONDS
+			!isRecord(item) ||
+			typeof item.folder !== "string" ||
+			typeof item.enabled !== "boolean" ||
+			(item.allowAuto !== undefined && typeof item.allowAuto !== "boolean")
 		) {
 			return {
 				ok: false,
-				error: `"automatic" must have boolean "enabled" and "includeNoDomain", and a "delaySeconds" from ${MIN_AUTO_DELAY_SECONDS} to ${MAX_AUTO_DELAY_SECONDS}.`,
+				error: `Domain number ${index + 1} must have a string "folder", a boolean "enabled" and, if present, a boolean "allowAuto".`,
 			};
 		}
-		automatic = {
-			enabled: candidate.enabled,
-			delaySeconds: Math.round(candidate.delaySeconds),
-			includeNoDomain: candidate.includeNoDomain,
-		};
-	}
-
-	const domains: { folder: string; enabled: boolean }[] = [];
-	for (const [index, item] of (raw.domains as unknown[]).entries()) {
-		if (!isRecord(item) || typeof item.folder !== "string" || typeof item.enabled !== "boolean") {
-			return {
-				ok: false,
-				error: `Domain number ${index + 1} must have a string "folder" and a boolean "enabled".`,
-			};
-		}
-		domains.push({ folder: item.folder, enabled: item.enabled });
+		domains.push({
+			folder: item.folder,
+			enabled: item.enabled,
+			...(item.allowAuto === false ? { allowAuto: false } : {}),
+		});
 	}
 
 	const warnings: string[] = [];
@@ -126,7 +111,9 @@ export function parseConfigJson(text: string): ParseResult {
 			fallback: { enabled: raw.fallback.enabled, folder: fallbackFolder },
 			excludeFolders,
 			folderMovePrompt: raw.folderMovePrompt,
-			automatic,
+			automatic: automatic.value,
+			prompts: prompts.value,
+			...general.value,
 			domains: deduplicated.registry,
 		},
 	};
@@ -142,7 +129,17 @@ export function serialiseConfig(config: SyncedConfig): string {
 		excludeFolders: [...config.excludeFolders],
 		folderMovePrompt: config.folderMovePrompt,
 		automatic: { ...config.automatic },
-		domains: config.domains.map((entry) => ({ folder: entry.folder, enabled: entry.enabled })),
+		prompts: { ...config.prompts },
+		notices: config.notices,
+		optOutProperty: config.optOutProperty,
+		writeCanonicalCasing: config.writeCanonicalCasing,
+		conflictPolicy: config.conflictPolicy,
+		undoDepth: config.undoDepth,
+		domains: config.domains.map((entry) => ({
+			folder: entry.folder,
+			enabled: entry.enabled,
+			...(entry.allowAuto === false ? { allowAuto: false } : {}),
+		})),
 	};
 	return `${JSON.stringify(file, null, 2)}\n`;
 }

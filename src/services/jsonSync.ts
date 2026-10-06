@@ -1,20 +1,30 @@
 import { Notice, normalizePath, type App } from "obsidian";
 import { folderLevels } from "../core/paths";
 import { parseConfigJson, serialiseConfig } from "../core/jsonSchema";
-import { decideSync } from "../core/merge";
+import { decideSync, summariseChanges } from "../core/merge";
 import { CONFIG_FILE_NAME, type AllocatorSettings, type ConfigFile } from "../types";
+import type { ConflictSide } from "../ui/SyncConflictModal";
 
 export type FileState =
 	| { state: "missing" }
 	| { state: "invalid"; error: string }
 	| { state: "ok"; config: ConfigFile; warnings: string[] };
 
-export type SyncOutcome = "created" | "in-sync" | "settings-used" | "file-used" | "invalid" | "error";
+export type SyncOutcome =
+	| "created"
+	| "in-sync"
+	| "settings-used"
+	| "file-used"
+	| "deferred"
+	| "invalid"
+	| "error";
 
 export interface SyncHost {
 	getSettings(): AllocatorSettings;
 	/** Replaces the settings with the (newer) file contents and persists them to data.json. */
 	adoptFileConfig(config: ConfigFile): Promise<void>;
+	/** Asks the user which side to keep (conflict policy "ask"). Null means decide later. */
+	chooseConflictSide(filePath: string, differences: readonly string[]): Promise<ConflictSide>;
 }
 
 /**
@@ -25,6 +35,8 @@ export interface SyncHost {
 export class JsonSync {
 	private queue: Promise<unknown> = Promise.resolve();
 	private lastReportedError: string | null = null;
+	/** The conflict the user chose to decide later, so it is not asked about again until something changes. */
+	private deferredConflict: string | null = null;
 
 	constructor(
 		private readonly app: App,
@@ -117,7 +129,32 @@ export class JsonSync {
 			case "create-file":
 				await this.writeSettings(settings);
 				return "created";
+			case "conflict":
+				return this.resolveConflict(file.config, manual);
 		}
+	}
+
+	private async resolveConflict(fileConfig: ConfigFile, manual: boolean): Promise<SyncOutcome> {
+		const settings = this.host.getSettings();
+		const key = `${settings.updatedAt}|${fileConfig.updatedAt}`;
+		if (!manual && this.deferredConflict === key) {
+			return "deferred";
+		}
+		const side = await this.host.chooseConflictSide(this.filePath, summariseChanges(settings, fileConfig));
+		if (side === "settings") {
+			this.deferredConflict = null;
+			await this.writeSettings(settings);
+			new Notice("Domain first file allocator: the data file was updated from your settings.");
+			return "settings-used";
+		}
+		if (side === "file") {
+			this.deferredConflict = null;
+			await this.host.adoptFileConfig(fileConfig);
+			new Notice("Domain first file allocator: your settings were updated from the data file.");
+			return "file-used";
+		}
+		this.deferredConflict = key;
+		return "deferred";
 	}
 
 	/** Writes the current settings to the file after a settings change. Never overwrites an invalid file. */

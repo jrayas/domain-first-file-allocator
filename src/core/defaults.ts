@@ -1,42 +1,31 @@
 import {
 	FOLDER_MOVE_PROMPTS,
 	type AllocatorSettings,
-	type AutomaticSettings,
 	type DomainEntry,
 	type FolderMovePrompt,
+	type SyncedConfig,
 } from "../types";
 import { normaliseFolderPath } from "./paths";
+import {
+	createDefaultAutomatic,
+	createDefaultGeneral,
+	createDefaultPrompts,
+	isRecord,
+	parseGeneral,
+	readAutomatic,
+	readPrompts,
+} from "./preferences";
 import { deduplicateRegistry } from "./registry";
 
+export {
+	MAX_AUTO_DELAY_SECONDS,
+	MIN_AUTO_DELAY_SECONDS,
+	clampDelay,
+	createDefaultAutomatic,
+	readAutomatic,
+} from "./preferences";
+
 export const DEFAULT_DATA_FOLDER = ".domain";
-export const MIN_AUTO_DELAY_SECONDS = 1;
-export const MAX_AUTO_DELAY_SECONDS = 60;
-
-export function createDefaultAutomatic(): AutomaticSettings {
-	return { enabled: false, delaySeconds: 2, includeNoDomain: false };
-}
-
-/** Keeps the delay a whole number of seconds within the allowed range. */
-export function clampDelay(value: number): number {
-	if (!Number.isFinite(value)) {
-		return createDefaultAutomatic().delaySeconds;
-	}
-	return Math.min(MAX_AUTO_DELAY_SECONDS, Math.max(MIN_AUTO_DELAY_SECONDS, Math.round(value)));
-}
-
-/** Reads the automatic settings leniently, falling back to defaults field by field. */
-export function readAutomatic(value: unknown): AutomaticSettings {
-	const defaults = createDefaultAutomatic();
-	if (!isRecord(value)) {
-		return defaults;
-	}
-	return {
-		enabled: typeof value.enabled === "boolean" ? value.enabled : defaults.enabled,
-		delaySeconds: typeof value.delaySeconds === "number" ? clampDelay(value.delaySeconds) : defaults.delaySeconds,
-		includeNoDomain:
-			typeof value.includeNoDomain === "boolean" ? value.includeNoDomain : defaults.includeNoDomain,
-	};
-}
 
 export function createDefaultSettings(now: Date = new Date()): AllocatorSettings {
 	return {
@@ -46,13 +35,11 @@ export function createDefaultSettings(now: Date = new Date()): AllocatorSettings
 		excludeFolders: ["Templates", DEFAULT_DATA_FOLDER],
 		folderMovePrompt: "ask",
 		automatic: createDefaultAutomatic(),
+		prompts: createDefaultPrompts(),
+		...createDefaultGeneral(),
 		domains: [],
 		dataFolderName: DEFAULT_DATA_FOLDER,
 	};
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function isFolderMovePrompt(value: unknown): value is FolderMovePrompt {
@@ -71,7 +58,11 @@ export function readDomainEntries(value: unknown): DomainEntry[] {
 	const entries: DomainEntry[] = [];
 	for (const item of value as unknown[]) {
 		if (isRecord(item) && typeof item.folder === "string") {
-			entries.push({ folder: item.folder, enabled: item.enabled !== false });
+			entries.push({
+				folder: item.folder,
+				enabled: item.enabled !== false,
+				...(item.allowAuto === false ? { allowAuto: false } : {}),
+			});
 		}
 	}
 	return deduplicateRegistry(entries).registry;
@@ -86,6 +77,26 @@ export function readFolderList(value: unknown, fallback: string[]): string[] {
 		.map(normaliseFolderPath)
 		.filter((folder) => folder !== "");
 	return [...new Set(folders)];
+}
+
+/** Turns a configuration (from the data file or an import) into settings, keeping the local data folder name. */
+export function settingsFromConfig(config: SyncedConfig, dataFolderName: string): AllocatorSettings {
+	return {
+		updatedAt: config.updatedAt,
+		propertyName: config.propertyName,
+		fallback: { ...config.fallback },
+		excludeFolders: [...config.excludeFolders],
+		folderMovePrompt: config.folderMovePrompt,
+		automatic: { ...config.automatic },
+		prompts: { ...config.prompts },
+		notices: config.notices,
+		optOutProperty: config.optOutProperty,
+		writeCanonicalCasing: config.writeCanonicalCasing,
+		conflictPolicy: config.conflictPolicy,
+		undoDepth: config.undoDepth,
+		domains: config.domains.map((entry) => ({ ...entry })),
+		dataFolderName,
+	};
 }
 
 /**
@@ -122,6 +133,8 @@ export function sanitiseSettings(raw: unknown, now: Date = new Date()): Allocato
 			? raw.folderMovePrompt
 			: defaults.folderMovePrompt,
 		automatic: readAutomatic(raw.automatic),
+		prompts: readPrompts(raw.prompts),
+		...parseGeneral(raw).value,
 		domains: readDomainEntries(raw.domains),
 		dataFolderName,
 	};
