@@ -1,0 +1,29 @@
+{
+  "name": "domain-first-file-allocator",
+  "version": "0.1.0",
+  "description": "Files notes into folders according to a domain property in their frontmatter.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "test": "vitest run",
+    "lint": "eslint src tests"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin"
+  ],
+  "author": "Your name",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.4",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.12.0",
+    "obsidian": "^1.13.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  }
+}
