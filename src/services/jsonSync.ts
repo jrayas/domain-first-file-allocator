@@ -139,15 +139,15 @@ export class JsonSync {
 		});
 	}
 
-	/** Writes a fresh copy of the current settings under a timestamped name, beside the data file. */
-	async exportFreshCopy(): Promise<string | null> {
+	/** Writes a copy of the current settings under a timestamped name, beside the data file. */
+	async exportFreshCopy(prefix = "folder-export"): Promise<string | null> {
 		return this.enqueue(async () => {
 			const settings = this.host.getSettings();
 			const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-			const path = normalizePath(`${settings.dataFolderName}/folder-export-${stamp}.json`);
+			const path = normalizePath(`${settings.dataFolderName}/${prefix}-${stamp}.json`);
 			try {
 				await this.writeSettings(settings, path);
-				new Notice(`Exported a fresh copy to ${path}.`);
+				new Notice(`Saved a copy of your settings to ${path}.`);
 				return path;
 			} catch (error) {
 				console.error("Domain First File Allocator: export failed", error);

@@ -1,4 +1,4 @@
-import { Plugin, TFile } from "obsidian";
+import { Plugin, TFile, type Menu } from "obsidian";
 import { sanitiseSettings } from "./core/defaults";
 import { Allocator } from "./services/allocator";
 import { BatchRunner } from "./services/batch";
@@ -20,6 +20,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	allocator!: Allocator;
 	undoService!: UndoService;
 	folderEvents!: FolderEvents;
+	ops!: VaultOps;
 	readonly guard = new MovingGuard();
 	readonly undoStack = new UndoStack();
 	readonly batchRunner = new BatchRunner();
@@ -38,6 +39,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 			commitSettings: () => this.commitSettings(),
 		};
 		const ops = new VaultOps(this.app, this.guard);
+		this.ops = ops;
 		this.allocator = new Allocator(host, ops, this.undoStack);
 		this.undoService = new UndoService(host, ops, this.undoStack);
 		this.folderEvents = new FolderEvents(host, this.allocator, this.guard, this.undoStack, this.batchRunner);
@@ -45,6 +47,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 
 		this.addSettingTab(new AllocatorSettingTab(this.app, this));
 		this.registerCommands();
+		this.registerContextMenu();
 
 		// Hidden-file changes raise no vault events, so sync on load and on focus.
 		this.app.workspace.onLayoutReady(() => {
@@ -82,6 +85,29 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		});
 	}
 
+	/** Adds the two filing commands to the file explorer's context menu. */
+	private registerContextMenu(): void {
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu: Menu, file) => {
+				if (!(file instanceof TFile) || file.extension !== "md") {
+					return;
+				}
+				menu.addItem((item) =>
+					item
+						.setTitle("File note by domain")
+						.setIcon("folder-input")
+						.onClick(() => void this.allocator.fileByDomain(file)),
+				);
+				menu.addItem((item) =>
+					item
+						.setTitle("Set domain from folder")
+						.setIcon("tag")
+						.onClick(() => void this.allocator.setDomainFromFolder(file)),
+				);
+			}),
+		);
+	}
+
 	onunload(): void {
 		this.batchRunner.cancel();
 		DecisionModal.closeAll();
@@ -103,6 +129,12 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		this.settings.updatedAt = new Date().toISOString();
 		await this.saveData(this.settings);
 		await this.jsonSync.pushSettings();
+	}
+
+	/** Replaces the synced settings with an imported configuration and stamps it as the newest. */
+	async importConfig(config: ConfigFile): Promise<void> {
+		await this.adoptFileConfig(config);
+		await this.commitSettings();
 	}
 
 	private async adoptFileConfig(config: ConfigFile): Promise<void> {

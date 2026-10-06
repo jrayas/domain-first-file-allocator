@@ -78,3 +78,30 @@
 .dffa-preview-label {
 	font-weight: var(--font-semibold);
 }
+
+.dffa-settings .dffa-list-row {
+	min-height: 52px;
+}
+
+.dffa-settings .dffa-list-row .clickable-icon {
+	min-width: 44px;
+	min-height: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.dffa-settings .dffa-list-row .setting-item-name {
+	overflow-wrap: anywhere;
+}
+
+.dffa-warning-icon {
+	display: inline-flex;
+	vertical-align: middle;
+	margin-right: 6px;
+	color: var(--text-warning);
+}
+
+.dffa-settings button {
+	min-height: 40px;
+}
