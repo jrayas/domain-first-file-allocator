@@ -14,7 +14,7 @@
     "obsidian",
     "plugin"
   ],
-  "author": "Your name",
+  "author": "jrayas",
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^10.0.1",

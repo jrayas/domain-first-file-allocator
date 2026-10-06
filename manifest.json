@@ -4,7 +4,7 @@
 	"version": "0.1.0",
 	"minAppVersion": "1.5.0",
 	"description": "File notes into folders using a domain property, and set the property from a note's folder.",
-	"author": "Your name",
-	"authorUrl": "https://example.com/your-profile",
+	"author": "jrayas",
+	"authorUrl": "https://github.com/jrayas",
 	"isDesktopOnly": false
 }
