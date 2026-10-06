@@ -48,6 +48,8 @@ export interface UndoAction {
 	entries: UndoEntry[];
 	/** Things undo cannot restore, reported to the user (for example a note sent to the trash). */
 	caveats: string[];
+	/** Set when the action also rewrote registry paths after a folder rename; undo reverses it. */
+	registryRename?: { from: string; to: string };
 }
 
 export const CONFIG_FILE_VERSION = 1;

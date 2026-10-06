@@ -9,6 +9,7 @@ import {
 	registryAffectedByRename,
 	removeDomain,
 	rewriteDomainValue,
+	rewriteRawDomainProperty,
 } from "../src/core/registry";
 import type { DomainEntry } from "../src/types";
 
@@ -106,5 +107,31 @@ describe("canonicalDomain", () => {
 	});
 	it("returns the normalised value when unregistered", () => {
 		expect(canonicalDomain(registry, " /Other\\Place/ ")).toBe("Other/Place");
+	});
+});
+
+describe("rewriteRawDomainProperty", () => {
+	it("rewrites a matching string", () => {
+		expect(rewriteRawDomainProperty("Areas/Finance/2026", "Areas/Finance", "Money")).toEqual({
+			changed: true,
+			value: "Money/2026",
+		});
+	});
+	it("leaves a non-matching string alone", () => {
+		expect(rewriteRawDomainProperty("Areas/Health", "Areas/Finance", "Money")).toEqual({
+			changed: false,
+			value: "Areas/Health",
+		});
+	});
+	it("rewrites matching items in a list and keeps the rest", () => {
+		expect(rewriteRawDomainProperty(["Areas/Finance", "Areas/Health", 3], "Areas/Finance", "Money")).toEqual({
+			changed: true,
+			value: ["Money", "Areas/Health", 3],
+		});
+	});
+	it("reports no change for lists with no match and for other types", () => {
+		expect(rewriteRawDomainProperty(["X"], "Areas", "Y").changed).toBe(false);
+		expect(rewriteRawDomainProperty(42, "Areas", "Y").changed).toBe(false);
+		expect(rewriteRawDomainProperty(undefined, "Areas", "Y").changed).toBe(false);
 	});
 });

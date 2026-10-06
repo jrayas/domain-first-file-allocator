@@ -76,3 +76,19 @@ export function readDomainValue(raw: unknown): DomainRead {
 export function isTruthyFlag(value: unknown): boolean {
 	return value === true || (typeof value === "string" && value.trim().toLowerCase() === "true");
 }
+
+/** Structural equality for frontmatter values (strings, numbers, lists); undefined means absent. */
+export function valuesEqual(a: unknown, b: unknown): boolean {
+	return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Short human-readable text for a raw property value, for previews and reports. */
+export function describeValue(raw: unknown): string {
+	if (raw === undefined || raw === null) {
+		return "(none)";
+	}
+	if (Array.isArray(raw)) {
+		return (raw as unknown[]).map((item) => String(item)).join(", ");
+	}
+	return typeof raw === "object" ? JSON.stringify(raw) : String(raw);
+}

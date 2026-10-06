@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTruthyFlag, readDomainValue } from "../src/core/domainValue";
+import { describeValue, isTruthyFlag, readDomainValue, valuesEqual } from "../src/core/domainValue";
 
 describe("readDomainValue", () => {
 	it("treats absent, null, blank and empty lists as missing", () => {
@@ -46,5 +46,25 @@ describe("isTruthyFlag", () => {
 		for (const raw of [false, "false", "yes", 1, null, undefined, []]) {
 			expect(isTruthyFlag(raw)).toBe(false);
 		}
+	});
+});
+
+describe("valuesEqual", () => {
+	it("compares strings, lists and absence", () => {
+		expect(valuesEqual("A", "A")).toBe(true);
+		expect(valuesEqual(["A", "B"], ["A", "B"])).toBe(true);
+		expect(valuesEqual(["A", "B"], ["B", "A"])).toBe(false);
+		expect(valuesEqual(undefined, undefined)).toBe(true);
+		expect(valuesEqual(undefined, "A")).toBe(false);
+	});
+});
+
+describe("describeValue", () => {
+	it("describes values for people", () => {
+		expect(describeValue(undefined)).toBe("(none)");
+		expect(describeValue(null)).toBe("(none)");
+		expect(describeValue("A/B")).toBe("A/B");
+		expect(describeValue(["A", "B"])).toBe("A, B");
+		expect(describeValue({ a: 1 })).toBe('{"a":1}');
 	});
 });

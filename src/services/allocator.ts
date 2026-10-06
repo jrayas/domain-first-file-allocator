@@ -8,6 +8,7 @@ import { ChooseDomainModal } from "../ui/ChooseDomainModal";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { NameClashModal, type ClashDecision } from "../ui/NameClashModal";
 import { UnknownDomainModal } from "../ui/UnknownDomainModal";
+import { readFrontmatter, writeProperty, type FrontmatterRecord } from "./frontmatter";
 import type { UndoStack } from "./undo";
 import type { VaultOps } from "./vaultOps";
 
@@ -35,8 +36,6 @@ export interface MoveRequest {
 export type MoveOutcome =
 	| { status: "moved"; entry: UndoEntry; destinationFolder: string; caveat?: string }
 	| { status: "unchanged" | "skipped" | "cancelled" };
-
-type FrontmatterRecord = Record<string, unknown>;
 
 /** The two single-note flows: file by domain, and set domain from folder. */
 export class Allocator {
@@ -347,32 +346,31 @@ export class Allocator {
 
 	// ------------------------------------------------------------ helpers
 
-	/** Notes in excluded folders, and notes that opt out, are never touched. */
-	private isEligible(file: TFile): boolean {
+	/** Why a note must never be touched (excluded folder or opt-out), or null if it may be. */
+	skipReason(file: TFile): string | null {
 		const settings = this.settings;
 		if (isExcluded(file.path, settings.excludeFolders, settings.dataFolderName)) {
-			new Notice(`"${file.basename}" is in an excluded folder, so it was left alone.`);
-			return false;
+			return `"${file.basename}" is in an excluded folder, so it was left alone.`;
 		}
 		if (isTruthyFlag(this.frontmatterOf(file)?.[OPT_OUT_PROPERTY])) {
-			new Notice(`"${file.basename}" has ${OPT_OUT_PROPERTY}: true, so it was left alone.`);
-			return false;
+			return `"${file.basename}" has ${OPT_OUT_PROPERTY}: true, so it was left alone.`;
 		}
-		return true;
+		return null;
+	}
+
+	private isEligible(file: TFile): boolean {
+		const reason = this.skipReason(file);
+		if (reason !== null) {
+			new Notice(reason);
+		}
+		return reason === null;
 	}
 
 	frontmatterOf(file: TFile): FrontmatterRecord | undefined {
-		return this.app.metadataCache.getFileCache(file)?.frontmatter;
+		return readFrontmatter(this.app, file);
 	}
 
-	async writeProperty(file: TFile, propertyName: string, value: unknown): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (frontmatter: FrontmatterRecord) => {
-			if (value === undefined) {
-				delete frontmatter[propertyName];
-			} else {
-				frontmatter[propertyName] = value;
-			}
-		});
+	writeProperty(file: TFile, propertyName: string, value: unknown): Promise<void> {
+		return writeProperty(this.app, file, propertyName, value);
 	}
 }
-

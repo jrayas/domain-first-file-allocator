@@ -100,3 +100,35 @@ export function rewriteDomainValue(value: string, oldPath: string, newPath: stri
 export function canonicalDomain(registry: readonly DomainEntry[], value: string): string {
 	return findDomain(registry, value)?.folder ?? normaliseFolderPath(value);
 }
+
+export interface RawRewrite {
+	changed: boolean;
+	value: unknown;
+}
+
+/**
+ * Applies a folder rename to a note's raw domain property, which may be a
+ * string or a list. Items that are not strings are left alone.
+ */
+export function rewriteRawDomainProperty(raw: unknown, oldPath: string, newPath: string): RawRewrite {
+	if (typeof raw === "string") {
+		const replaced = rewriteDomainValue(raw, oldPath, newPath);
+		return replaced === null ? { changed: false, value: raw } : { changed: true, value: replaced };
+	}
+	if (Array.isArray(raw)) {
+		let changed = false;
+		const value = (raw as unknown[]).map((item) => {
+			if (typeof item !== "string") {
+				return item;
+			}
+			const replaced = rewriteDomainValue(item, oldPath, newPath);
+			if (replaced === null) {
+				return item;
+			}
+			changed = true;
+			return replaced;
+		});
+		return { changed, value };
+	}
+	return { changed: false, value: raw };
+}

@@ -5,6 +5,15 @@ import { Modal, type App } from "obsidian";
  * other way (Escape, tapping outside) resolves with `dismissed`.
  */
 export abstract class DecisionModal<T> extends Modal {
+	private static readonly openModals = new Set<Modal>();
+
+	/** Closes every decision modal still open, used when the plugin unloads. */
+	static closeAll(): void {
+		for (const modal of [...DecisionModal.openModals]) {
+			modal.close();
+		}
+	}
+
 	private resolver: ((value: T) => void) | null = null;
 	private settled = false;
 
@@ -18,6 +27,7 @@ export abstract class DecisionModal<T> extends Modal {
 	ask(): Promise<T> {
 		return new Promise<T>((resolve) => {
 			this.resolver = resolve;
+			DecisionModal.openModals.add(this);
 			this.open();
 		});
 	}
@@ -32,6 +42,7 @@ export abstract class DecisionModal<T> extends Modal {
 			return;
 		}
 		this.settled = true;
+		DecisionModal.openModals.delete(this);
 		this.resolver?.(value);
 	}
 

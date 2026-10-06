@@ -1,11 +1,14 @@
 import { Plugin, TFile } from "obsidian";
 import { sanitiseSettings } from "./core/defaults";
 import { Allocator } from "./services/allocator";
+import { BatchRunner } from "./services/batch";
+import { FolderEvents } from "./services/folderEvents";
 import { JsonSync } from "./services/jsonSync";
 import { MovingGuard } from "./services/movingGuard";
-import { UndoStack } from "./services/undo";
+import { UndoService, UndoStack } from "./services/undo";
 import { VaultOps } from "./services/vaultOps";
 import { AllocatorSettingTab } from "./settings";
+import { DecisionModal } from "./ui/DecisionModal";
 import type { AllocatorSettings, ConfigFile } from "./types";
 
 /** Minimum gap between syncs triggered by the window regaining focus. */
@@ -15,8 +18,11 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	settings!: AllocatorSettings;
 	jsonSync!: JsonSync;
 	allocator!: Allocator;
+	undoService!: UndoService;
+	folderEvents!: FolderEvents;
 	readonly guard = new MovingGuard();
 	readonly undoStack = new UndoStack();
+	readonly batchRunner = new BatchRunner();
 	private lastFocusSync = 0;
 
 	async onload(): Promise<void> {
@@ -26,15 +32,16 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 			getSettings: () => this.settings,
 			adoptFileConfig: (config) => this.adoptFileConfig(config),
 		});
-		this.allocator = new Allocator(
-			{
-				app: this.app,
-				getSettings: () => this.settings,
-				commitSettings: () => this.commitSettings(),
-			},
-			new VaultOps(this.app, this.guard),
-			this.undoStack,
-		);
+		const host = {
+			app: this.app,
+			getSettings: () => this.settings,
+			commitSettings: () => this.commitSettings(),
+		};
+		const ops = new VaultOps(this.app, this.guard);
+		this.allocator = new Allocator(host, ops, this.undoStack);
+		this.undoService = new UndoService(host, ops, this.undoStack);
+		this.folderEvents = new FolderEvents(host, this.allocator, this.guard, this.undoStack, this.batchRunner);
+		this.folderEvents.register(this);
 
 		this.addSettingTab(new AllocatorSettingTab(this.app, this));
 		this.registerCommands();
@@ -66,6 +73,18 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 			checkCallback: (checking) =>
 				this.withActiveNote(checking, (file) => this.allocator.setDomainFromFolder(file)),
 		});
+		this.addCommand({
+			id: "undo-last-allocation",
+			name: "Undo last allocation",
+			callback: () => {
+				void this.undoService.undoLast();
+			},
+		});
+	}
+
+	onunload(): void {
+		this.batchRunner.cancel();
+		DecisionModal.closeAll();
 	}
 
 	private withActiveNote(checking: boolean, action: (file: TFile) => Promise<void>): boolean {
