@@ -1,4 +1,5 @@
 import { App, Notice, PluginSettingTab, Setting, TFolder, debounce, setIcon } from "obsidian";
+import { clampDelay, MAX_AUTO_DELAY_SECONDS, MIN_AUTO_DELAY_SECONDS } from "./core/defaults";
 import { parseConfigJson } from "./core/jsonSchema";
 import { summariseChanges } from "./core/merge";
 import { isExcluded, normaliseFolderPath, pathKey } from "./core/paths";
@@ -34,6 +35,7 @@ export class AllocatorSettingTab extends PluginSettingTab {
 		this.renderGeneral(containerEl);
 		this.renderDomains(containerEl);
 		this.renderBehaviour(containerEl);
+		this.renderAutomatic(containerEl);
 		this.renderData(containerEl);
 	}
 
@@ -278,6 +280,52 @@ export class AllocatorSettingTab extends PluginSettingTab {
 						settings.folderMovePrompt = value as FolderMovePrompt;
 						this.commit();
 					}),
+			);
+	}
+
+	// -------------------------------------------------------------- automatic
+
+	private renderAutomatic(containerEl: HTMLElement): void {
+		const { automatic } = this.plugin.settings;
+		new Setting(containerEl).setName("Automatic filing").setHeading();
+
+		new Setting(containerEl)
+			.setName("File notes automatically")
+			.setDesc(
+				"File a note by its domain shortly after you change its domain property. Only registered, enabled domains are acted on, and nothing is ever replaced. A name clash leaves the note in place. Also available from the ribbon icon.",
+			)
+			.addToggle((toggle) =>
+				toggle.setValue(automatic.enabled).onChange((value) => {
+					automatic.enabled = value;
+					this.commit();
+				}),
+			);
+
+		const saveDelay = debounce(() => this.commit(), 700, true);
+		new Setting(containerEl)
+			.setName("Delay")
+			.setDesc("Seconds to wait after the domain property last changed, so a half-typed value is not acted on.")
+			.addSlider((slider) =>
+				slider
+					.setLimits(MIN_AUTO_DELAY_SECONDS, MAX_AUTO_DELAY_SECONDS, 1)
+					.setValue(automatic.delaySeconds)
+					.setDynamicTooltip()
+					.onChange((value) => {
+						automatic.delaySeconds = clampDelay(value);
+						saveDelay();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Also file notes with no domain")
+			.setDesc(
+				"Send new notes, and notes whose domain was removed, to the fallback folder. Off by default because it moves every unfiled note.",
+			)
+			.addToggle((toggle) =>
+				toggle.setValue(automatic.includeNoDomain).onChange((value) => {
+					automatic.includeNoDomain = value;
+					this.commit();
+				}),
 			);
 	}
 

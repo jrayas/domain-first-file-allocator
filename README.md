@@ -16,6 +16,21 @@ It works on desktop and mobile, and uses only the Obsidian API.
 
 The two filing commands are separate on purpose: when a note's folder and its property disagree, you decide which one is correct.
 
+**Hotkeys.** The plugin sets no default hotkeys, in line with Obsidian's guidelines, so nothing clashes with your own. To add one, open **Settings → Hotkeys**, search for "Domain First File Allocator", and assign a key to **File note by domain** (or either of the other commands).
+
+### Automatic filing
+
+Off by default. Turn it on in settings, or select the **lightning-bolt icon in the left ribbon** to switch it on and off (the icon is highlighted while it is on; on mobile it is in the ribbon menu).
+
+When on, a note is filed by its domain a few seconds after its domain property last changed. The delay is adjustable from 1 to 60 seconds, so a half-typed value is not acted on.
+
+- It reacts only to **changes to the property**, never to where a note sits. A note you move by hand is not moved back.
+- It acts only on a value that matches a registered, **enabled** domain. Unknown, disabled, multi-value and invalid values are left alone, quietly, and no dialogue opens.
+- A **name clash** leaves the note in place and shows a notice. It never replaces or renames anything.
+- Excluded folders and `skip-allocator: true` are respected.
+- Each automatic move can be reversed with **Undo last allocation**. Undo remembers only the latest action, so a quick series of automatic moves can only be undone one step.
+- **Also file notes with no domain** (off by default) sends new notes, and notes whose domain was removed, to the fallback folder. Leave it off unless you want every unfiled note moved.
+
 The plugin also watches for folder changes:
 
 - When you **rename or move a domain folder**, the registry follows it, and you are offered a preview of the notes whose domain property should be rewritten to match.
@@ -84,6 +99,14 @@ A list of registered folders. Each can be switched on or off or removed, and new
 | --- | --- | --- |
 | Folder-move prompt | Ask | *Ask*, *Always update* or *Never*, for notes you move by hand into a domain folder. |
 
+**Automatic filing**
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| File notes automatically | off | Also toggled by the left-ribbon icon. |
+| Delay | 2 seconds | 1 to 60. How long after the domain property last changed a note is filed. |
+| Also file notes with no domain | off | Sends new and domainless notes to the fallback folder. |
+
 **Data**
 
 | Setting | Default | Notes |
@@ -116,11 +139,14 @@ The settings are mirrored to `<data folder name>/folder.json` in the vault root 
   "fallback": { "enabled": true, "folder": "Inbox" },
   "excludeFolders": ["Templates", ".domain"],
   "folderMovePrompt": "ask",
+  "automatic": { "enabled": false, "delaySeconds": 2, "includeNoDomain": false },
   "domains": [
     { "folder": "Areas/Finance", "enabled": true }
   ]
 }
 ```
+
+`automatic` is optional: a file without it is read with the defaults shown, so files written by earlier versions still load. `delaySeconds` must be between 1 and 60.
 
 Sync rules:
 

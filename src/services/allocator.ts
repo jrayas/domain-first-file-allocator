@@ -82,6 +82,66 @@ export class Allocator {
 		}
 	}
 
+	/**
+	 * Files a note without asking anything. Only an enabled, registered domain
+	 * (or, if `includeNoDomain`, an empty one going to the fallback) is acted on;
+	 * unknown, disabled, multiple or invalid values are left alone without fuss,
+	 * because the user may still be typing. A name clash skips the note.
+	 */
+	async autoFile(file: TFile, includeNoDomain: boolean): Promise<"done" | "busy"> {
+		if (this.busy) {
+			return "busy";
+		}
+		this.busy = true;
+		try {
+			await this.runAutoFile(file, includeNoDomain);
+		} catch (error) {
+			console.error("Domain First File Allocator:", error);
+			new Notice(`Domain first file allocator: automatic filing of "${file.basename}" failed.`);
+		} finally {
+			this.busy = false;
+		}
+		return "done";
+	}
+
+	private async runAutoFile(file: TFile, includeNoDomain: boolean): Promise<void> {
+		if (this.skipReason(file) !== null) {
+			return;
+		}
+		const settings = this.settings;
+		const read = readDomainValue(this.frontmatterOf(file)?.[settings.propertyName]);
+
+		let request: MoveRequest;
+		if (read.kind === "missing") {
+			if (!includeNoDomain || !settings.fallback.enabled) {
+				return;
+			}
+			request = { file, targetFolder: settings.fallback.folder };
+		} else if (read.kind === "single") {
+			const lookup = lookupDomain(settings.domains, read.value);
+			if (lookup.status !== "enabled") {
+				return;
+			}
+			request = { file, targetFolder: lookup.entry.folder, domainValue: lookup.entry.folder };
+		} else {
+			return;
+		}
+
+		const outcome = await this.moveNote(request, () => Promise.resolve({ action: "skip", applyToAll: false }));
+		if (outcome.status === "moved") {
+			this.undo.record({
+				label: `Automatically file "${file.basename}"`,
+				entries: [outcome.entry],
+				caveats: [],
+			});
+			new Notice(`Automatically filed "${file.basename}" to "${outcome.destinationFolder}".`);
+		} else if (outcome.status === "skipped") {
+			new Notice(
+				`Automatic filing left "${file.basename}" in place because "${request.targetFolder}" already has a note with that name.`,
+			);
+		}
+	}
+
 	// -------------------------------------------------------- file by domain
 
 	private async runFileByDomain(file: TFile): Promise<void> {

@@ -1,6 +1,7 @@
-import { Plugin, TFile, type Menu } from "obsidian";
+import { Notice, Plugin, TFile, type Menu } from "obsidian";
 import { sanitiseSettings } from "./core/defaults";
 import { Allocator } from "./services/allocator";
+import { AutoFiler } from "./services/autoFiler";
 import { BatchRunner } from "./services/batch";
 import { FolderEvents } from "./services/folderEvents";
 import { JsonSync } from "./services/jsonSync";
@@ -20,6 +21,8 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	allocator!: Allocator;
 	undoService!: UndoService;
 	folderEvents!: FolderEvents;
+	autoFiler!: AutoFiler;
+	private ribbonEl: HTMLElement | null = null;
 	ops!: VaultOps;
 	readonly guard = new MovingGuard();
 	readonly undoStack = new UndoStack();
@@ -44,10 +47,13 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		this.undoService = new UndoService(host, ops, this.undoStack);
 		this.folderEvents = new FolderEvents(host, this.allocator, this.guard, this.undoStack, this.batchRunner);
 		this.folderEvents.register(this);
+		this.autoFiler = new AutoFiler(host, this.allocator);
+		this.autoFiler.register(this);
 
 		this.addSettingTab(new AllocatorSettingTab(this.app, this));
 		this.registerCommands();
 		this.registerContextMenu();
+		this.registerRibbon();
 
 		// Hidden-file changes raise no vault events, so sync on load and on focus.
 		this.app.workspace.onLayoutReady(() => {
@@ -83,6 +89,30 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 				void this.undoService.undoLast();
 			},
 		});
+	}
+
+	/** A left-ribbon icon that switches automatic filing on and off. */
+	private registerRibbon(): void {
+		this.ribbonEl = this.addRibbonIcon("zap", "Toggle automatic filing", () => {
+			const { automatic } = this.settings;
+			automatic.enabled = !automatic.enabled;
+			void this.commitSettings();
+			new Notice(`Automatic filing is ${automatic.enabled ? "on" : "off"}.`);
+		});
+		this.refreshRibbon();
+	}
+
+	/** Shows the current automatic-filing state on the ribbon icon. */
+	refreshRibbon(): void {
+		const on = this.settings.automatic.enabled;
+		this.ribbonEl?.toggleClass("dffa-auto-on", on);
+		this.ribbonEl?.setAttribute(
+			"aria-label",
+			`Automatic filing is ${on ? "on" : "off"}. Select to turn it ${on ? "off" : "on"}.`,
+		);
+		if (!on) {
+			this.autoFiler?.cancelPending();
+		}
 	}
 
 	/** Adds the two filing commands to the file explorer's context menu. */
@@ -128,6 +158,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	async commitSettings(): Promise<void> {
 		this.settings.updatedAt = new Date().toISOString();
 		await this.saveData(this.settings);
+		this.refreshRibbon();
 		await this.jsonSync.pushSettings();
 	}
 
@@ -144,9 +175,11 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 			fallback: config.fallback,
 			excludeFolders: config.excludeFolders,
 			folderMovePrompt: config.folderMovePrompt,
+			automatic: config.automatic,
 			domains: config.domains,
 			dataFolderName: this.settings.dataFolderName,
 		};
 		await this.saveData(this.settings);
+		this.refreshRibbon();
 	}
 }

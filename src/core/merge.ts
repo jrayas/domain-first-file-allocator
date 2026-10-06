@@ -23,6 +23,9 @@ export function configsEqual(a: SyncedConfig, b: SyncedConfig): boolean {
 		a.fallback.enabled === b.fallback.enabled &&
 		a.fallback.folder === b.fallback.folder &&
 		a.folderMovePrompt === b.folderMovePrompt &&
+		a.automatic.enabled === b.automatic.enabled &&
+		a.automatic.delaySeconds === b.automatic.delaySeconds &&
+		a.automatic.includeNoDomain === b.automatic.includeNoDomain &&
 		a.excludeFolders.length === b.excludeFolders.length &&
 		a.excludeFolders.every((folder, i) => folder === b.excludeFolders[i]) &&
 		a.domains.length === b.domains.length &&
@@ -60,6 +63,20 @@ export function summariseChanges(current: SyncedConfig, incoming: SyncedConfig):
 	}
 	if (current.folderMovePrompt !== incoming.folderMovePrompt) {
 		lines.push(`Folder-move prompt: ${current.folderMovePrompt} becomes ${incoming.folderMovePrompt}.`);
+	}
+
+	if (current.automatic.enabled !== incoming.automatic.enabled) {
+		lines.push(`Automatic filing will be ${incoming.automatic.enabled ? "turned on" : "turned off"}.`);
+	}
+	if (current.automatic.delaySeconds !== incoming.automatic.delaySeconds) {
+		lines.push(
+			`Automatic filing delay: ${current.automatic.delaySeconds} s becomes ${incoming.automatic.delaySeconds} s.`,
+		);
+	}
+	if (current.automatic.includeNoDomain !== incoming.automatic.includeNoDomain) {
+		lines.push(
+			`Automatic filing of notes with no domain will be ${incoming.automatic.includeNoDomain ? "turned on" : "turned off"}.`,
+		);
 	}
 
 	const currentExcluded = new Set(current.excludeFolders.map(pathKey));

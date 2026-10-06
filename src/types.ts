@@ -13,6 +13,15 @@ export interface FallbackSettings {
 	folder: string;
 }
 
+export interface AutomaticSettings {
+	/** File notes by domain automatically when their domain property changes. */
+	enabled: boolean;
+	/** Seconds the note must sit unchanged before it is filed. */
+	delaySeconds: number;
+	/** Also send new or domainless notes to the fallback folder. */
+	includeNoDomain: boolean;
+}
+
 /** The part of the settings that is mirrored to the JSON file. */
 export interface SyncedConfig {
 	updatedAt: string;
@@ -20,6 +29,7 @@ export interface SyncedConfig {
 	fallback: FallbackSettings;
 	excludeFolders: string[];
 	folderMovePrompt: FolderMovePrompt;
+	automatic: AutomaticSettings;
 	domains: DomainEntry[];
 }
 

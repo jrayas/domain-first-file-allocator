@@ -1,6 +1,7 @@
 import {
 	FOLDER_MOVE_PROMPTS,
 	type AllocatorSettings,
+	type AutomaticSettings,
 	type DomainEntry,
 	type FolderMovePrompt,
 } from "../types";
@@ -8,6 +9,34 @@ import { normaliseFolderPath } from "./paths";
 import { deduplicateRegistry } from "./registry";
 
 export const DEFAULT_DATA_FOLDER = ".domain";
+export const MIN_AUTO_DELAY_SECONDS = 1;
+export const MAX_AUTO_DELAY_SECONDS = 60;
+
+export function createDefaultAutomatic(): AutomaticSettings {
+	return { enabled: false, delaySeconds: 2, includeNoDomain: false };
+}
+
+/** Keeps the delay a whole number of seconds within the allowed range. */
+export function clampDelay(value: number): number {
+	if (!Number.isFinite(value)) {
+		return createDefaultAutomatic().delaySeconds;
+	}
+	return Math.min(MAX_AUTO_DELAY_SECONDS, Math.max(MIN_AUTO_DELAY_SECONDS, Math.round(value)));
+}
+
+/** Reads the automatic settings leniently, falling back to defaults field by field. */
+export function readAutomatic(value: unknown): AutomaticSettings {
+	const defaults = createDefaultAutomatic();
+	if (!isRecord(value)) {
+		return defaults;
+	}
+	return {
+		enabled: typeof value.enabled === "boolean" ? value.enabled : defaults.enabled,
+		delaySeconds: typeof value.delaySeconds === "number" ? clampDelay(value.delaySeconds) : defaults.delaySeconds,
+		includeNoDomain:
+			typeof value.includeNoDomain === "boolean" ? value.includeNoDomain : defaults.includeNoDomain,
+	};
+}
 
 export function createDefaultSettings(now: Date = new Date()): AllocatorSettings {
 	return {
@@ -16,6 +45,7 @@ export function createDefaultSettings(now: Date = new Date()): AllocatorSettings
 		fallback: { enabled: true, folder: "Inbox" },
 		excludeFolders: ["Templates", DEFAULT_DATA_FOLDER],
 		folderMovePrompt: "ask",
+		automatic: createDefaultAutomatic(),
 		domains: [],
 		dataFolderName: DEFAULT_DATA_FOLDER,
 	};
@@ -91,6 +121,7 @@ export function sanitiseSettings(raw: unknown, now: Date = new Date()): Allocato
 		folderMovePrompt: isFolderMovePrompt(raw.folderMovePrompt)
 			? raw.folderMovePrompt
 			: defaults.folderMovePrompt,
+		automatic: readAutomatic(raw.automatic),
 		domains: readDomainEntries(raw.domains),
 		dataFolderName,
 	};

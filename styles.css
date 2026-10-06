@@ -105,3 +105,7 @@
 .dffa-settings button {
 	min-height: 40px;
 }
+
+.dffa-auto-on {
+	color: var(--interactive-accent);
+}

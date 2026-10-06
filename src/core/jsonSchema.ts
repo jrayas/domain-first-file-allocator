@@ -1,5 +1,11 @@
 import { CONFIG_FILE_VERSION, type ConfigFile, type SyncedConfig } from "../types";
-import { isFolderMovePrompt, isIsoTimestamp } from "./defaults";
+import {
+	MAX_AUTO_DELAY_SECONDS,
+	MIN_AUTO_DELAY_SECONDS,
+	createDefaultAutomatic,
+	isFolderMovePrompt,
+	isIsoTimestamp,
+} from "./defaults";
 import { normaliseFolderPath } from "./paths";
 import { deduplicateRegistry } from "./registry";
 
@@ -60,6 +66,31 @@ export function parseConfigJson(text: string): ParseResult {
 		return { ok: false, error: '"domains" must be a list.' };
 	}
 
+	// "automatic" is optional, so files written before it existed still load.
+	let automatic = createDefaultAutomatic();
+	if (raw.automatic !== undefined) {
+		const candidate = raw.automatic;
+		if (
+			!isRecord(candidate) ||
+			typeof candidate.enabled !== "boolean" ||
+			typeof candidate.includeNoDomain !== "boolean" ||
+			typeof candidate.delaySeconds !== "number" ||
+			!Number.isFinite(candidate.delaySeconds) ||
+			candidate.delaySeconds < MIN_AUTO_DELAY_SECONDS ||
+			candidate.delaySeconds > MAX_AUTO_DELAY_SECONDS
+		) {
+			return {
+				ok: false,
+				error: `"automatic" must have boolean "enabled" and "includeNoDomain", and a "delaySeconds" from ${MIN_AUTO_DELAY_SECONDS} to ${MAX_AUTO_DELAY_SECONDS}.`,
+			};
+		}
+		automatic = {
+			enabled: candidate.enabled,
+			delaySeconds: Math.round(candidate.delaySeconds),
+			includeNoDomain: candidate.includeNoDomain,
+		};
+	}
+
 	const domains: { folder: string; enabled: boolean }[] = [];
 	for (const [index, item] of (raw.domains as unknown[]).entries()) {
 		if (!isRecord(item) || typeof item.folder !== "string" || typeof item.enabled !== "boolean") {
@@ -95,6 +126,7 @@ export function parseConfigJson(text: string): ParseResult {
 			fallback: { enabled: raw.fallback.enabled, folder: fallbackFolder },
 			excludeFolders,
 			folderMovePrompt: raw.folderMovePrompt,
+			automatic,
 			domains: deduplicated.registry,
 		},
 	};
@@ -109,6 +141,7 @@ export function serialiseConfig(config: SyncedConfig): string {
 		fallback: { enabled: config.fallback.enabled, folder: config.fallback.folder },
 		excludeFolders: [...config.excludeFolders],
 		folderMovePrompt: config.folderMovePrompt,
+		automatic: { ...config.automatic },
 		domains: config.domains.map((entry) => ({ folder: entry.folder, enabled: entry.enabled })),
 	};
 	return `${JSON.stringify(file, null, 2)}\n`;

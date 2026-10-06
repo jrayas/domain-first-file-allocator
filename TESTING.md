@@ -126,6 +126,34 @@ Give three notes `domain: Areas/Finance`, one `domain: Areas/Finance/2026`, and 
 - [ ] After **Replace**, undo restores the incoming note's place and warns about the trashed note.
 - [ ] Restart Obsidian: undo has nothing (it is in memory only).
 
+## Automatic filing
+
+Start with automatic filing **off**.
+
+- [ ] A left-ribbon icon (lightning bolt) is present. On mobile it is in the ribbon menu.
+- [ ] Its tooltip says automatic filing is off and offers to turn it on.
+- [ ] With it off, changing a note's `domain` to `Areas/Health` does nothing.
+- [ ] Select the icon: a notice says it is on, the icon is highlighted, and the settings toggle is on.
+- [ ] Turn it off from the settings toggle: the ribbon icon updates to match.
+- [ ] With it on, change a note's `domain` to `Areas/Health` and wait for the delay: the note moves, and a notice says so.
+- [ ] Editing only the note's body does not move it.
+- [ ] Typing a domain slowly (pausing less than the delay between edits) moves the note once, after the last change.
+- [ ] A half-typed or unknown domain does nothing and shows no dialogue.
+- [ ] A disabled domain does nothing.
+- [ ] A list with several domains does nothing.
+- [ ] **Drag a note into `Areas/Health` by hand with the wrong property: automatic filing does not move it back** (the folder-move prompt applies instead).
+- [ ] A name clash leaves the note in place and shows a notice, and nothing is replaced.
+- [ ] Notes in an excluded folder, or with `skip-allocator: true`, are never moved.
+- [ ] **Undo last allocation** reverses an automatic move.
+- [ ] Changing the delay to 10 seconds takes effect (sync from `folder.json` too).
+- [ ] Turning automatic filing off while a note is waiting cancels the pending move.
+- [ ] Create a new note with no domain: with **Also file notes with no domain** off, nothing happens. Turn it on, create another, and after the delay it goes to the fallback folder.
+- [ ] Remove the `domain` property from a note with that option on: the note goes to the fallback.
+- [ ] Restart Obsidian with it on: existing notes are not refiled at startup.
+- [ ] Change the property name in settings: no notes move because of the change.
+- [ ] Edit `folder.json` to add `"automatic": {"enabled": true, "delaySeconds": 5, "includeNoDomain": false}`, then **Sync now**: the settings and ribbon update. Remove the block entirely: the file still loads, with the defaults.
+- [ ] An invalid block (`"delaySeconds": 0`) is rejected like other invalid JSON, with the file left untouched.
+
 ## Settings
 
 - [ ] Changing the property name shows the "existing notes keep their old property name" notice, once.
