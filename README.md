@@ -20,16 +20,20 @@ The two filing commands are separate on purpose: when a note's folder and its pr
 
 ### Automatic filing
 
-Off by default. Turn it on in settings, or select the **lightning-bolt icon in the left ribbon** to switch it on and off (the icon is highlighted while it is on; on mobile it is in the ribbon menu).
+Off by default. Turn it on in settings, or select the **lightning-bolt icon in the left ribbon** to switch it on and off. The icon is highlighted while it is on, and dimmed while snoozed. On mobile it is in the ribbon menu. Right-click the icon (or long-press, where your device supports it) for **Snooze for 15 minutes**, **Snooze for 1 hour** and **Resume now**.
 
 When on, a note is filed by its domain a few seconds after its domain property last changed. The delay is adjustable from 1 to 60 seconds, so a half-typed value is not acted on.
 
 - It reacts only to **changes to the property**, never to where a note sits. A note you move by hand is not moved back.
-- It acts only on a value that matches a registered, **enabled** domain. Unknown, disabled, multi-value and invalid values are left alone, quietly, and no dialogue opens.
+- It acts only on a value that matches a registered, **enabled** domain that is not set to *Manual only*. Unknown, disabled, multi-value and invalid values are left alone, quietly, and no dialogue opens.
 - A **name clash** leaves the note in place and shows a notice. It never replaces or renames anything.
-- Excluded folders and `skip-allocator: true` are respected.
-- Each automatic move can be reversed with **Undo last allocation**. Undo remembers only the latest action, so a quick series of automatic moves can only be undone one step.
+- Excluded folders and the opt-out property are respected.
+- **Never move the open note** (on by default) holds back a note that is open in the editor, and files it once you switch to another note.
+- **Only file notes in the fallback folder** limits automatic filing to an inbox-style folder.
 - **Also file notes with no domain** (off by default) sends new notes, and notes whose domain was removed, to the fallback folder. Leave it off unless you want every unfiled note moved.
+- **Quiet moves** hides the notice for a successful automatic move. Skips and errors are still shown.
+- **Snooze** pauses automatic filing for a while. Changes made while paused are not filed afterwards, and a restart ends the snooze.
+- Each automatic move can be reversed with **Undo last allocation**, up to the undo depth you choose.
 
 The plugin also watches for folder changes:
 
@@ -80,24 +84,42 @@ The pure logic lives in `src/core/` with no Obsidian imports, and is covered by 
 
 ## Settings reference
 
+The settings screen has five tabs, listed down the left (a dropdown at the top on a phone).
+
 **General**
 
 | Setting | Default | Notes |
 | --- | --- | --- |
 | Property name | `domain` | The frontmatter property to read and write. Changing it affects future filing only; existing notes keep their old property name. |
+| Opt-out property | `skip-allocator` | A note with this property set to `true` is ignored entirely. |
+| Write the folder's casing | on | When filing, rewrite the note's domain to the folder's real capitalisation. Off leaves your own text alone when it names the same folder. |
 | Use fallback folder | on | When off, notes with no matching domain stay where they are. |
 | Fallback folder | `Inbox` | Any name or path. Created on demand. |
 | Excluded folders | `Templates`, `.domain` | Notes inside these (and their subfolders) are never moved or modified. The data folder is always excluded as well. |
+| Notice level | All notices | *All notices*, *Important only* or *Errors only*. Errors are always shown. |
 
 **Domains**
 
-A list of registered folders. Each can be switched on or off or removed, and new ones are added with a searchable folder picker, never by typing. A folder path can appear only once. A **disabled** domain is treated as unknown, so its notes go to the fallback folder. A warning icon marks a domain whose folder no longer exists; it is kept in case the folder comes back.
+A list of registered folders, with a search box, a sort order (path, enabled first, order added), and a note count for each. Every domain has a mode: **Manual and automatic**, **Manual only** (never filed by automatic mode) or **Off** (treated as unknown, so its notes go to the fallback). **Turn all on** and **Turn all off** act on the domains matching the search. A warning icon marks a domain whose folder no longer exists; it is kept in case the folder comes back.
 
-**Behaviour**
+New domains are added with a searchable folder picker, never by typing. **Add subfolders** registers the subfolders of a folder in one go: you see the list first, can include nested folders, and excluded or already registered folders are skipped. A folder path can appear only once.
 
-| Setting | Default | Notes |
+**Prompts and confirmations**
+
+A **preset** sets all the popup choices together: *Cautious* (ask about everything, the default), *Balanced* (create and register folders automatically, ask the rest) and *Hands-off* (automate everything that is safe). Changing any single choice shows the preset as *Custom*.
+
+| Setting | Default | Choices |
 | --- | --- | --- |
-| Folder-move prompt | Ask | *Ask*, *Always update* or *Never*, for notes you move by hand into a domain folder. |
+| Unknown domain | Ask | Ask, send to the fallback folder, add it as a domain. A domain you switched off is never turned back on without asking. |
+| Several domains in one note | Ask | Ask which, or use the first. |
+| Domain folder does not exist | Ask | Ask, or create it automatically (when adding an unknown domain). |
+| Name clash | Ask | Ask, keep both notes, or skip the note. |
+| Folder is not a domain yet | Ask | Ask, or register it automatically (Set domain from folder). |
+| After a domain folder is renamed or moved | Show a preview | Show a preview, or update automatically. |
+| Skip the preview below this many notes | 1 | 1 to 50. A rename that affects fewer notes is applied without a preview. |
+| Note moved by hand into a domain folder | Ask | Ask, always update, or never. |
+
+Some confirmations are **never** switched off: **Replace** (needs a second confirmation), **Import** (shows the changes and saves a backup first) and overwriting a damaged data file (never done).
 
 **Automatic filing**
 
@@ -105,20 +127,27 @@ A list of registered folders. Each can be switched on or off or removed, and new
 | --- | --- | --- |
 | File notes automatically | off | Also toggled by the left-ribbon icon. |
 | Delay | 2 seconds | 1 to 60. How long after the domain property last changed a note is filed. |
+| Never move the open note | on | The note is filed once you switch away from it. |
+| Only file notes in the fallback folder | off | Limits automatic filing to notes already in the fallback folder. |
 | Also file notes with no domain | off | Sends new and domainless notes to the fallback folder. |
+| Quiet moves | off | No notice for a successful automatic move. |
+| Pause automatic filing | | Snooze for 15 minutes or 1 hour, or resume. |
 
-**Data**
+**Data and sync**
 
 | Setting | Default | Notes |
 | --- | --- | --- |
 | Data folder name | `.domain` | The hidden folder in the vault root that holds `folder.json`. |
+| When the settings and the file differ | Most recently changed wins | Also: always use my settings, always use the data file, or ask me each time. |
 | Sync now | | Reconciles the settings with the data file. |
+| Actions Undo can reverse | The last action only | The last 1, 5 or 10 actions. |
 | Export | | Saves a dated copy of the settings next to the data file. |
 | Import | | Loads a settings file after showing what will change. A backup is saved first. |
+| Reset to defaults | | Puts every setting back to its default, including the domain registry. A backup is saved first. Your notes are not touched. |
 
 ### Per-note opt-out
 
-Add `skip-allocator: true` to a note's frontmatter and the plugin ignores that note entirely.
+Add `skip-allocator: true` to a note's frontmatter and the plugin ignores that note entirely. The property name can be changed on the General tab.
 
 ### How the domain value is read
 
@@ -139,18 +168,55 @@ The settings are mirrored to `<data folder name>/folder.json` in the vault root 
   "fallback": { "enabled": true, "folder": "Inbox" },
   "excludeFolders": ["Templates", ".domain"],
   "folderMovePrompt": "ask",
-  "automatic": { "enabled": false, "delaySeconds": 2, "includeNoDomain": false },
+  "automatic": {
+    "enabled": false,
+    "delaySeconds": 2,
+    "includeNoDomain": false,
+    "onlyInFallback": false,
+    "skipOpenNote": true,
+    "quiet": false
+  },
+  "prompts": {
+    "unknownDomain": "ask",
+    "multipleValues": "ask",
+    "registerFolder": "ask",
+    "createFolder": "ask",
+    "renamePreview": "ask",
+    "nameClash": "ask",
+    "previewThreshold": 1
+  },
+  "notices": "all",
+  "optOutProperty": "skip-allocator",
+  "writeCanonicalCasing": true,
+  "conflictPolicy": "newest",
+  "undoDepth": 1,
   "domains": [
-    { "folder": "Areas/Finance", "enabled": true }
+    { "folder": "Areas/Finance", "enabled": true },
+    { "folder": "Areas/Private", "enabled": true, "allowAuto": false }
   ]
 }
 ```
 
-`automatic` is optional: a file without it is read with the defaults shown, so files written by earlier versions still load. `delaySeconds` must be between 1 and 60.
+Everything after `folderMovePrompt` is optional, so files written by earlier versions still load, with the defaults shown, and the version stays 1. A domain's `allowAuto` is written only when it is `false` (Manual only). Allowed values:
+
+| Field | Values |
+| --- | --- |
+| `automatic.delaySeconds` | 1 to 60 |
+| `prompts.unknownDomain` | `ask`, `fallback`, `add` |
+| `prompts.multipleValues` | `ask`, `first` |
+| `prompts.registerFolder`, `createFolder`, `renamePreview` | `ask`, `auto` |
+| `prompts.nameClash` | `ask`, `keep-both`, `skip` (Replace is deliberately not available) |
+| `prompts.previewThreshold` | 1 to 50 |
+| `notices` | `all`, `important`, `errors` |
+| `conflictPolicy` | `newest`, `settings`, `file`, `ask` |
+| `undoDepth` | 1, 5 or 10 |
+
+A value outside these makes the file unusable, and it is then left untouched, never overwritten.
 
 Sync rules:
 
-- The settings and the file each carry `updatedAt`. **The most recently updated one wins**, and a notice says which side was used. If they differ but have the same timestamp, the settings win.
+- The settings and the file each carry `updatedAt`. By default **the most recently updated one wins**, and a notice says which side was used. If they differ but have the same timestamp, the settings win. You can instead choose to always use your settings, always use the file, or be asked each time (the policy is your own local choice, and the one stored in the file is not used to decide).
+- When you are asked and choose **Decide later**, nothing changes and you are not asked again until one side changes.
 - Syncing happens when the plugin loads, when you change a setting, when the app window regains focus, and when you press **Sync now**.
 - If the file is malformed or has an unknown `version`, the plugin **never overwrites it**. It shows a notice, keeps your current settings, and offers to export a fresh file under a different name.
 - Duplicate domain entries in the file are merged, and reported when you press **Sync now**.
@@ -163,7 +229,7 @@ Obsidian Sync does not sync hidden folders such as `.domain` by default. If you 
 - Frontmatter is edited with Obsidian's own YAML handling, never by string manipulation.
 - Anything that touches more than one note shows a preview first and runs as one undoable action.
 - **Replace** (in the name clash dialogue) needs a second confirmation. It sends the existing note to the trash following your Obsidian "Deleted files" setting. Undo cannot bring that note back; restore it from the trash yourself.
-- Undo keeps one action in memory only. It is lost when Obsidian restarts.
+- Undo keeps the last 1, 5 or 10 actions (your choice) in memory only. They are lost when Obsidian restarts.
 
 ## Troubleshooting
 
@@ -181,7 +247,15 @@ Obsidian Sync does not sync hidden folders such as `.domain` by default. If you 
 
 **A domain has a warning icon.** Its folder no longer exists, perhaps because it was renamed while the plugin was disabled. Remove the domain and add the folder again.
 
-**The folder-move prompt stopped appearing.** You chose "Don't ask again". Set **Folder-move prompt** back to Ask.
+**The folder-move prompt stopped appearing.** You chose "Don't ask again". Set **Note moved by hand into a domain folder** back to Ask on the Prompts and confirmations tab.
+
+**A popup I expect does not appear.** A preset or an individual choice on the Prompts and confirmations tab may be set to automatic. Choose the **Cautious** preset to ask about everything again.
+
+**I do not see notices any more.** Check **Notice level** on the General tab. Errors are always shown.
+
+**A note was not filed automatically.** Its domain may be unknown, off, or set to *Manual only*; it may be open in the editor (it is filed when you switch away); it may be outside the fallback folder while **Only file notes in the fallback folder** is on; or automatic filing may be snoozed.
+
+**Reset removed my domains.** Reset also clears the registry. A backup named `folder-backup-<date>.json` was saved beside the data file; use **Import** to bring it back.
 
 ## Licence
 

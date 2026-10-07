@@ -125,6 +125,7 @@ Give three notes `domain: Areas/Finance`, one `domain: Areas/Finance/2026`, and 
 - [ ] Create a note at the old path, then undo: it reports the path is taken.
 - [ ] After **Replace**, undo restores the incoming note's place and warns about the trashed note.
 - [ ] Restart Obsidian: undo has nothing (it is in memory only).
+- [ ] With the undo depth above 1, repeated undo steps back through earlier actions, newest first.
 
 ## Automatic filing
 
@@ -154,16 +155,88 @@ Start with automatic filing **off**.
 - [ ] Edit `folder.json` to add `"automatic": {"enabled": true, "delaySeconds": 5, "includeNoDomain": false}`, then **Sync now**: the settings and ribbon update. Remove the block entirely: the file still loads, with the defaults.
 - [ ] An invalid block (`"delaySeconds": 0`) is rejected like other invalid JSON, with the file left untouched.
 
-## Settings
+## Settings screen
 
-- [ ] Changing the property name shows the "existing notes keep their old property name" notice, once.
-- [ ] Adding a domain uses a searchable picker. Registered and excluded folders are not offered.
-- [ ] Removing a domain asks first.
-- [ ] Disabling a domain makes notes for it go to the fallback.
-- [ ] A domain whose folder was deleted shows a warning icon.
-- [ ] Excluded folders can be added by typing (including a hidden folder) or by picker, and removed.
+- [ ] Five tabs are listed down the left: General, Domains, Prompts and confirmations, Automatic filing, Data and sync.
+- [ ] Selecting a tab shows it, highlights it, and scrolls back to the top.
+- [ ] Widen and narrow the window: below about 700 pixels the tab list becomes a dropdown above the content, and the dropdown switches tabs.
+- [ ] On a phone the dropdown is shown and the tab list is hidden.
+- [ ] Changing a setting that redraws the tab (for example removing an excluded folder) keeps the scroll position.
+- [ ] Every control is comfortably large to tap.
+- [ ] Settings changes are saved: close and reopen settings, and restart Obsidian, and they persist.
+- [ ] Each change updates `folder.json`.
+
+### General tab
+
+- [ ] Changing the property name shows the "existing notes keep their old property name" notice once, after you stop typing.
+- [ ] Changing the opt-out property to `keep-out`: a note with `keep-out: true` is left alone, and `skip-allocator: true` no longer protects a note.
+- [ ] With **Write the folder's casing** off, filing a note with `domain: areas/finance` leaves the text as it is. With it on, the text becomes `Areas/Finance`.
+- [ ] A list with several values is still rewritten to the single chosen value with the option off.
+- [ ] **Use fallback folder** off: notes with no domain stay put.
 - [ ] Setting the fallback to an excluded folder shows the note in its description.
-- [ ] The tap targets are comfortably large.
+- [ ] Excluded folders can be added by typing (including a hidden folder) or by picker, and removed.
+- [ ] **Notice level**: *All notices* shows everything. *Important only* hides routine confirmations such as "Moved note". *Errors only* shows only errors.
+- [ ] With *Errors only*, a name clash or a settings sync change shows no notice, but a failure (for example a malformed `folder.json`) still does.
+- [ ] The Hotkeys note is present, and the commands can be given hotkeys in Settings, Hotkeys.
+
+### Domains tab
+
+- [ ] The list shows each domain with its note count.
+- [ ] A domain whose folder was deleted shows a warning icon and an explanation.
+- [ ] The search box filters as you type and keeps keyboard focus.
+- [ ] Sort by path, enabled first and order added each reorder the list.
+- [ ] Each domain's mode can be set to **Manual and automatic**, **Manual only** or **Off**.
+- [ ] **Off**: filing by domain treats it as unknown.
+- [ ] **Manual only**: File note by domain still works, but automatic filing never moves a note to it.
+- [ ] **Turn all on** and **Turn all off** act only on the domains matching the search.
+- [ ] **Add a domain** opens a searchable picker that does not offer registered or excluded folders.
+- [ ] **Add subfolders**: pick a parent folder and see the list of subfolders to add.
+- [ ] In the bulk-add dialogue, ticking the nested option adds deeper levels, and excluded or registered folders are never listed.
+- [ ] With nothing to add the dialogue says so and the Add button is disabled.
+- [ ] Adding reports how many domains were added.
+- [ ] Removing a domain asks first, and leaves the folder and notes alone.
+
+### Prompts and confirmations tab
+
+- [ ] The default preset reads **Cautious**.
+- [ ] Choosing **Balanced** sets folder creation and registration to automatic, and leaves the rest on ask.
+- [ ] Choosing **Hands-off** sets unknown domain to the fallback, several domains to the first, rename preview to automatic, name clash to keep both, and note moved by hand to always update.
+- [ ] Changing any single choice makes the preset read **Custom**; choosing a preset again restores it.
+- [ ] **Unknown domain** *Send to the fallback folder*: a note with an unregistered domain goes to the fallback with no dialogue.
+- [ ] **Unknown domain** *Add it as a domain*: the domain is registered and the note filed, with no dialogue (and no folder is created unless the next setting allows it).
+- [ ] With *Add it as a domain*, a domain that is switched off still opens the dialogue and is not turned on silently.
+- [ ] **Several domains in one note** *Use the first one*: the note is filed by the first value, with no dialogue, and the property becomes that single value.
+- [ ] **Domain folder does not exist** *Create automatically*: adding an unknown domain with no folder creates it without asking.
+- [ ] **Folder is not a domain yet** *Register automatically*: Set domain from folder registers the folder without asking.
+- [ ] **Name clash** *Keep both notes* and *Skip the note* settle a clash with no dialogue; Replace is never chosen automatically.
+- [ ] **After a domain folder is renamed or moved** *Update automatically*: notes are rewritten with no preview, and Undo reverses it.
+- [ ] **Skip the preview below this many notes**: with 3, a rename affecting 2 notes applies without a preview, and one affecting 5 shows it.
+- [ ] **Note moved by hand** options behave as in the manual-move section above.
+- [ ] The **Always asks** list explains that Replace, Import and overwriting a damaged data file are never switched off.
+- [ ] Whatever the settings, Replace still needs its second confirmation, and Import still shows the summary.
+
+### Automatic filing tab
+
+- [ ] The toggle and the ribbon icon stay in step.
+- [ ] The delay slider changes how long a note waits (try 1 and 10 seconds).
+- [ ] **Never move the open note**: with it on, a note open in the editor is not moved until you switch to another note; then it is filed. With it off, it is filed straight away.
+- [ ] **Only file notes in the fallback folder**: a note elsewhere is never moved automatically; a note in the fallback folder is.
+- [ ] **Also file notes with no domain** works as in the automatic filing section.
+- [ ] **Quiet moves**: no notice for a successful automatic move; a name-clash skip still shows one.
+- [ ] **Snooze 15 minutes** and **1 hour**: the description shows the minutes left, the ribbon icon changes appearance, and property changes made while paused are not filed.
+- [ ] **Resume now** ends the snooze at once.
+- [ ] Turning automatic filing off clears any snooze.
+- [ ] Right-click the ribbon icon: the menu offers on/off, snooze and resume as appropriate.
+- [ ] A restart ends a snooze.
+
+### Data and sync tab
+
+- [ ] Changing the data folder name writes a new file there and leaves the old one.
+- [ ] **Actions Undo can reverse**: at 5, file three notes in turn and press Undo three times; each reverses the latest remaining action, and the notice says how many earlier actions remain.
+- [ ] Lowering the depth below the number of stored actions drops the oldest.
+- [ ] **Reset to defaults** asks first, saves `folder-backup-<date>.json`, then resets everything, including the registry and excluded folders. **Import** of that backup restores them.
+- [ ] Cancelling the reset changes nothing.
+- [ ] **Sync now**, **Export** and **Import** behave as in the JSON sync section.
 
 ## JSON sync
 
@@ -174,6 +247,11 @@ Start with automatic filing **off**.
 - [ ] Break the JSON (delete a brace), then **Sync now**: a notice explains the problem, the file is **not** overwritten, and settings are unchanged.
 - [ ] In that notice, **Export a fresh file** creates `folder-export-….json` and does not touch `folder.json`.
 - [ ] Set `"version": 2`: same behaviour as broken JSON.
+- [ ] Set `"notices": "loud"`, `"undoDepth": 2` or `"prompts": {"nameClash": "replace"}`: same behaviour as broken JSON, and the file is not overwritten.
+- [ ] A file with none of the newer blocks (`prompts`, `notices`, and so on) loads with the defaults.
+- [ ] With **When the settings and the file differ** set to *Always use my settings*, a newer file never overrides your settings; with *Always use the data file*, an older file still wins.
+- [ ] With *Ask me each time*, editing the file and pressing **Sync now** opens a dialogue listing the differences. **Use my settings**, **Use the file** and **Decide later** each do what they say, and Decide later does not ask again on the next focus.
+- [ ] The conflict policy stored in the file is ignored; only your own setting counts.
 - [ ] Add two entries for the same folder (different case): they merge, with a notice.
 - [ ] Rename the data folder in settings: the file is written at the new location, and the old one is left behind.
 - [ ] **Export** creates a dated file.
@@ -205,6 +283,12 @@ Copy the plugin folder into the vault on the device, or sync it, and enable it.
 - [ ] Typing in the Rename field works with the on-screen keyboard, and Enter submits.
 - [ ] The folder picker opens, searches and selects.
 - [ ] Settings toggles, dropdown and trash buttons are easy to tap.
+- [ ] The settings categories appear as a dropdown at the top, and choosing one switches the tab.
+- [ ] The domain mode dropdowns, the search box and the sliders are usable with a finger.
+- [ ] The bulk-add dialogue and its list scroll and fit the screen.
+- [ ] The automatic filing icon is in the ribbon menu, toggles the mode, and shows its state.
+- [ ] Snooze can be started and ended from the Automatic filing tab, since right-click may not exist.
+- [ ] The sync conflict dialogue (policy *Ask me each time*) fits the screen and its buttons are easy to tap.
 - [ ] **Sync now** works, and the app regaining focus (switching away and back) syncs.
 - [ ] **Import** opens the device's file picker. If your platform does not offer one, note it.
 - [ ] **Export** writes the dated file (check with the file manager if hidden folders are visible).
