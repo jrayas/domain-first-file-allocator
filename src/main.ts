@@ -1,5 +1,5 @@
 import { Menu, Plugin, TFile } from "obsidian";
-import { sanitiseSettings, settingsFromConfig } from "./core/defaults";
+import { createDefaultSettings, sanitiseSettings, settingsFromConfig } from "./core/defaults";
 import { UndoStack } from "./core/undoStack";
 import { Allocator } from "./services/allocator";
 import { AutoFiler } from "./services/autoFiler";
@@ -273,6 +273,13 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	/** Replaces the synced settings with an imported configuration and stamps it as the newest. */
 	async importConfig(config: ConfigFile): Promise<void> {
 		await this.adoptFileConfig(config);
+		await this.commitSettings();
+	}
+
+	/** Puts every setting back to its default, keeping only where the data file lives. */
+	async resetToDefaults(): Promise<void> {
+		this.resumeNow(false);
+		this.settings = { ...createDefaultSettings(), dataFolderName: this.settings.dataFolderName };
 		await this.commitSettings();
 	}
 

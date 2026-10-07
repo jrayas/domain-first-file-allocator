@@ -113,3 +113,116 @@
 .dffa-auto-snoozed {
 	color: var(--text-warning);
 }
+
+
+/* Settings screen: vertical tabs on a wide screen, a dropdown on a narrow one. */
+.dffa-layout {
+	display: flex;
+	align-items: flex-start;
+	gap: 24px;
+}
+
+.dffa-nav {
+	flex: 0 0 210px;
+	position: sticky;
+	top: 0;
+}
+
+.dffa-nav-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.dffa-nav-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	min-height: 44px;
+	padding: 8px 12px;
+	text-align: left;
+	background: transparent;
+	box-shadow: none;
+	border: none;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.dffa-nav-item:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.dffa-nav-item.is-active {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.dffa-nav-icon {
+	display: inline-flex;
+}
+
+.dffa-nav-select {
+	display: none;
+	width: 100%;
+	min-height: 44px;
+}
+
+.dffa-content {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.dffa-lock-icon {
+	display: inline-flex;
+	vertical-align: middle;
+	margin-right: 6px;
+	color: var(--text-muted);
+}
+
+.dffa-settings .dffa-domain-list .setting-item-control select {
+	max-width: 190px;
+}
+
+/* A phone, or any narrow window: the tab list becomes a dropdown above the content. */
+.is-mobile .dffa-layout {
+	flex-direction: column;
+	gap: 12px;
+}
+
+.is-mobile .dffa-nav {
+	flex: 0 0 auto;
+	position: static;
+	width: 100%;
+}
+
+.is-mobile .dffa-nav-list {
+	display: none;
+}
+
+.is-mobile .dffa-nav-select {
+	display: block;
+}
+
+@media (max-width: 700px) {
+	.dffa-layout {
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.dffa-nav {
+		flex: 0 0 auto;
+		position: static;
+		width: 100%;
+	}
+
+	.dffa-nav-list {
+		display: none;
+	}
+
+	.dffa-nav-select {
+		display: block;
+	}
+}
