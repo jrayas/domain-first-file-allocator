@@ -1,4 +1,4 @@
-import { normaliseFolderPath, pathKey } from "./paths";
+import { normaliseFolderPath, pathKey, samePath } from "./paths";
 
 export type DomainRead =
 	| { kind: "missing" }
@@ -91,4 +91,20 @@ export function describeValue(raw: unknown): string {
 		return (raw as unknown[]).map((item) => String(item)).join(", ");
 	}
 	return typeof raw === "object" ? JSON.stringify(raw) : String(raw);
+}
+
+/**
+ * Whether filing should write `domainValue` to the property. It never does when the
+ * property already holds exactly that. When the user prefers their own text left
+ * alone, it also skips a single string that names the same folder in a different
+ * casing or path style. Lists, numbers and absent values are always rewritten.
+ */
+export function needsDomainWrite(oldValue: unknown, domainValue: string, writeCanonicalCasing: boolean): boolean {
+	if (valuesEqual(oldValue, domainValue)) {
+		return false;
+	}
+	if (!writeCanonicalCasing && typeof oldValue === "string" && samePath(oldValue, domainValue)) {
+		return false;
+	}
+	return true;
 }

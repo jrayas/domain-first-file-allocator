@@ -9,6 +9,8 @@ const MAX_BUSY_RETRIES = 3;
 export interface AutoFilerHost {
 	app: App;
 	getSettings(): AllocatorSettings;
+	/** True while the user has paused automatic filing from the ribbon or settings. */
+	isSnoozed(): boolean;
 }
 
 /**
@@ -21,6 +23,8 @@ export class AutoFiler {
 	private readonly lastSeen = new Map<string, string>();
 	private baselineProperty: string | null = null;
 	private readonly timers = new Map<TFile, number>();
+	/** Notes that were open in the editor when their turn came; filed once they are no longer the active note. */
+	private readonly waitingForClose = new Set<TFile>();
 	private ready = false;
 	private disposed = false;
 
@@ -38,6 +42,7 @@ export class AutoFiler {
 		plugin.registerEvent(this.app.vault.on("rename", (file, oldPath) => this.onRename(file, oldPath)));
 		plugin.registerEvent(this.app.vault.on("delete", (file) => this.lastSeen.delete(file.path)));
 		plugin.registerEvent(this.app.vault.on("create", (file) => this.onCreate(file)));
+		plugin.registerEvent(this.app.workspace.on("active-leaf-change", () => this.releaseClosedNotes()));
 		this.app.workspace.onLayoutReady(() => {
 			this.rebuildBaseline();
 			this.ready = true;
@@ -51,6 +56,7 @@ export class AutoFiler {
 			window.clearTimeout(timer);
 		}
 		this.timers.clear();
+		this.waitingForClose.clear();
 		this.lastSeen.clear();
 	}
 
@@ -60,6 +66,21 @@ export class AutoFiler {
 			window.clearTimeout(timer);
 		}
 		this.timers.clear();
+		this.waitingForClose.clear();
+	}
+
+	/** Files notes that were held back because they were open, now that they no longer are. */
+	private releaseClosedNotes(): void {
+		if (this.waitingForClose.size === 0) {
+			return;
+		}
+		const active = this.app.workspace.getActiveFile();
+		for (const file of [...this.waitingForClose]) {
+			if (file !== active) {
+				this.waitingForClose.delete(file);
+				this.schedule(file);
+			}
+		}
 	}
 
 	private valueKey(file: TFile, propertyName: string): string {
@@ -134,15 +155,17 @@ export class AutoFiler {
 
 	private async fire(file: TFile, attempt: number): Promise<void> {
 		const { automatic } = this.host.getSettings();
-		if (this.disposed || !automatic.enabled) {
+		if (this.disposed || !automatic.enabled || this.host.isSnoozed()) {
 			return;
 		}
 		if (this.app.vault.getAbstractFileByPath(file.path) !== file) {
 			return; // deleted or renamed away while waiting
 		}
-		const result = await this.allocator.autoFile(file, automatic.includeNoDomain);
+		const result = await this.allocator.autoFile(file);
 		if (result === "busy" && attempt < MAX_BUSY_RETRIES) {
 			this.schedule(file, attempt + 1);
+		} else if (result === "open") {
+			this.waitingForClose.add(file);
 		}
 	}
 }

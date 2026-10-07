@@ -30,7 +30,7 @@ export interface PromptSettings {
 	/** The preview shown after a domain folder is renamed or moved. */
 	renamePreview: AskOrAuto;
 	nameClash: NameClashPolicy;
-	/** Batches smaller than this skip the preview, when previews are set to automatic. */
+	/** The rename preview is skipped, and the rewrite applied, when fewer notes than this are affected. */
 	previewThreshold: number;
 }
 

@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder, type App, type Plugin, type TAbstractFile } from "obsidian";
+import { TFile, TFolder, type App, type Plugin, type TAbstractFile } from "obsidian";
 import { describeValue, readDomainValue } from "../core/domainValue";
 import { parentFolder, replacePrefix, samePath } from "../core/paths";
 import {
@@ -12,6 +12,7 @@ import { BatchPreviewModal } from "../ui/BatchPreviewModal";
 import type { Allocator } from "./allocator";
 import type { BatchRunner } from "./batch";
 import type { MovingGuard } from "./movingGuard";
+import type { Notifier } from "./notify";
 import type { UndoStack } from "./undo";
 
 /** Notes moved within this window of each other are offered as one batch. */
@@ -21,6 +22,7 @@ const FOLDER_RENAME_MEMORY_MS = 10000;
 
 export interface FolderEventsHost {
 	app: App;
+	notifier: Notifier;
 	getSettings(): AllocatorSettings;
 	commitSettings(): Promise<void>;
 }
@@ -66,6 +68,10 @@ export class FolderEvents {
 		return this.host.app;
 	}
 
+	private get notify(): Notifier {
+		return this.host.notifier;
+	}
+
 	register(plugin: Plugin): void {
 		plugin.registerEvent(this.app.vault.on("rename", (file, oldPath) => this.onRename(file, oldPath)));
 		plugin.register(() => this.dispose());
@@ -86,7 +92,7 @@ export class FolderEvents {
 			.then(() => (this.disposed ? undefined : task()))
 			.catch((error: unknown) => {
 				console.error("Domain First File Allocator:", error);
-				new Notice("Domain first file allocator: could not handle a folder change. See the console for details.");
+				this.notify.error("Domain first file allocator: could not handle a folder change. See the console for details.");
 			});
 	}
 
@@ -125,8 +131,17 @@ export class FolderEvents {
 		const updates = this.findNotesToRewrite(settings.propertyName, oldPath, folder.path);
 		let entries: UndoEntry[] = [];
 
+		// The preview is skipped when the user chose automatic, or the batch is below their threshold.
+		const showPreview =
+			settings.prompts.renamePreview === "ask" && updates.length >= settings.prompts.previewThreshold;
+
 		if (updates.length === 0) {
-			new Notice(`Domain registry updated: "${oldPath}" is now "${folder.path}".`);
+			this.notify.info(`Domain registry updated: "${oldPath}" is now "${folder.path}".`);
+		} else if (!showPreview) {
+			entries = await this.applyUpdates(settings.propertyName, updates);
+			this.notify.info(
+				`Domain registry updated, and the ${settings.propertyName} property rewritten on ${entries.length} ${entries.length === 1 ? "note" : "notes"}.`,
+			);
 		} else {
 			const choice = await new BatchPreviewModal(this.app, {
 				title: "Update domain values?",
@@ -139,8 +154,8 @@ export class FolderEvents {
 			if (choice === "confirm") {
 				entries = await this.applyUpdates(settings.propertyName, updates);
 			} else {
-				new Notice(
-					`The ${settings.propertyName} property in ${updates.length} notes still names "${oldPath}". The registry now uses "${folder.path}".`,
+				this.notify.important(
+						`The ${settings.propertyName} property in ${updates.length} notes still names "${oldPath}". The registry now uses "${folder.path}".`,
 				);
 			}
 		}
@@ -244,7 +259,7 @@ export class FolderEvents {
 			if (choice === "never") {
 				settings.folderMovePrompt = "never";
 				await this.host.commitSettings();
-				new Notice('Domain first file allocator will no longer ask. Change "Folder-move prompt" in its settings to turn this back on.');
+				this.notify.important('Domain first file allocator will no longer ask. Change "Folder-move prompt" in its settings to turn this back on.');
 				return;
 			}
 			if (choice !== "confirm") {
@@ -258,7 +273,7 @@ export class FolderEvents {
 			entries,
 			caveats: [],
 		});
-		new Notice(`Updated the ${settings.propertyName} property on ${entries.length} ${entries.length === 1 ? "note" : "notes"}.`);
+		this.notify.info(`Updated the ${settings.propertyName} property on ${entries.length} ${entries.length === 1 ? "note" : "notes"}.`);
 	}
 
 	// ------------------------------------------------------------- shared
@@ -284,7 +299,7 @@ export class FolderEvents {
 			});
 		});
 		if (result.failures.length > 0 || result.cancelled) {
-			new Notice(
+			this.notify.error(
 				`${result.failures.length} ${result.failures.length === 1 ? "note" : "notes"} could not be updated${result.cancelled ? " and the run was stopped early" : ""}.`,
 			);
 		}

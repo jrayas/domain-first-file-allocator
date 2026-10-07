@@ -1,34 +1,18 @@
-import { Notice, TFile, type App } from "obsidian";
+import { TFile, type App } from "obsidian";
 import { describeValue, valuesEqual } from "../core/domainValue";
 import { baseName, joinPath, parentFolder } from "../core/paths";
 import { applyRenameToRegistry } from "../core/registry";
+import { UndoStack } from "../core/undoStack";
 import type { AllocatorSettings, UndoAction, UndoEntry } from "../types";
 import { readFrontmatter, writeProperty } from "./frontmatter";
+import type { Notifier } from "./notify";
 import type { VaultOps } from "./vaultOps";
 
-/** Holds the single most recent undoable action in memory. */
-export class UndoStack {
-	private action: UndoAction | null = null;
-
-	record(action: UndoAction): void {
-		if (action.entries.length > 0 || action.registryRename) {
-			this.action = action;
-		}
-	}
-
-	peek(): UndoAction | null {
-		return this.action;
-	}
-
-	take(): UndoAction | null {
-		const action = this.action;
-		this.action = null;
-		return action;
-	}
-}
+export { UndoStack };
 
 export interface UndoHost {
 	app: App;
+	notifier: Notifier;
 	getSettings(): AllocatorSettings;
 	commitSettings(): Promise<void>;
 }
@@ -44,13 +28,14 @@ export class UndoService {
 	) {}
 
 	async undoLast(): Promise<void> {
+		const { notifier } = this.host;
 		if (this.running) {
-			new Notice("An undo is already in progress.");
+			notifier.important("An undo is already in progress.");
 			return;
 		}
 		const action = this.stack.take();
 		if (!action) {
-			new Notice("There is nothing to undo.");
+			notifier.info("There is nothing to undo.");
 			return;
 		}
 		this.running = true;
@@ -58,7 +43,7 @@ export class UndoService {
 			await this.reverse(action);
 		} catch (error) {
 			console.error("Domain First File Allocator: undo failed", error);
-			new Notice("Domain first file allocator: the undo could not be completed. See the console for details.");
+			notifier.error("Domain first file allocator: the undo could not be completed. See the console for details.");
 		} finally {
 			this.running = false;
 		}
@@ -91,7 +76,15 @@ export class UndoService {
 			lines.push(`The domain registry now points at "${action.registryRename.from}" again.`);
 		}
 		lines.push(...problems, ...action.caveats);
-		new Notice(lines.join("\n"), problems.length > 0 || action.caveats.length > 0 ? 15000 : 6000);
+		if (this.stack.size > 0) {
+			lines.push(`${this.stack.size} earlier ${this.stack.size === 1 ? "action" : "actions"} can still be undone.`);
+		}
+		const needsAttention = problems.length > 0 || action.caveats.length > 0;
+		if (needsAttention) {
+			this.host.notifier.important(lines.join("\n"), 15000);
+		} else {
+			this.host.notifier.info(lines.join("\n"));
+		}
 	}
 
 	/** Returns true when the note was fully restored; otherwise records why in `problems`. */

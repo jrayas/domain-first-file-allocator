@@ -1,16 +1,18 @@
-import { Notice, Plugin, TFile, type Menu } from "obsidian";
+import { Menu, Plugin, TFile } from "obsidian";
 import { sanitiseSettings, settingsFromConfig } from "./core/defaults";
+import { UndoStack } from "./core/undoStack";
 import { Allocator } from "./services/allocator";
 import { AutoFiler } from "./services/autoFiler";
 import { BatchRunner } from "./services/batch";
 import { FolderEvents } from "./services/folderEvents";
 import { JsonSync } from "./services/jsonSync";
 import { MovingGuard } from "./services/movingGuard";
-import { UndoService, UndoStack } from "./services/undo";
+import { Notifier } from "./services/notify";
+import { UndoService } from "./services/undo";
 import { VaultOps } from "./services/vaultOps";
 import { AllocatorSettingTab } from "./settings";
-import { DecisionModal } from "./ui/DecisionModal";
 import type { AllocatorSettings, ConfigFile } from "./types";
+import { DecisionModal } from "./ui/DecisionModal";
 import { SyncConflictModal } from "./ui/SyncConflictModal";
 
 /** Minimum gap between syncs triggered by the window regaining focus. */
@@ -23,17 +25,22 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	undoService!: UndoService;
 	folderEvents!: FolderEvents;
 	autoFiler!: AutoFiler;
-	private ribbonEl: HTMLElement | null = null;
 	ops!: VaultOps;
 	readonly guard = new MovingGuard();
-	readonly undoStack = new UndoStack();
+	readonly notifier = new Notifier(() => this.settings.notices);
+	readonly undoStack = new UndoStack(() => this.settings.undoDepth);
 	readonly batchRunner = new BatchRunner();
+	private ribbonEl: HTMLElement | null = null;
 	private lastFocusSync = 0;
+	/** Automatic filing is paused until this time. Not saved: a restart resumes it. */
+	private snoozedUntil = 0;
+	private snoozeTimer: number | null = null;
 
 	async onload(): Promise<void> {
 		this.settings = sanitiseSettings(await this.loadData());
 
 		this.jsonSync = new JsonSync(this.app, {
+			notifier: this.notifier,
 			getSettings: () => this.settings,
 			adoptFileConfig: (config) => this.adoptFileConfig(config),
 			chooseConflictSide: (filePath, differences) =>
@@ -41,16 +48,16 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		});
 		const host = {
 			app: this.app,
+			notifier: this.notifier,
 			getSettings: () => this.settings,
 			commitSettings: () => this.commitSettings(),
 		};
-		const ops = new VaultOps(this.app, this.guard);
-		this.ops = ops;
-		this.allocator = new Allocator(host, ops, this.undoStack);
-		this.undoService = new UndoService(host, ops, this.undoStack);
+		this.ops = new VaultOps(this.app, this.guard);
+		this.allocator = new Allocator(host, this.ops, this.undoStack);
+		this.undoService = new UndoService(host, this.ops, this.undoStack);
 		this.folderEvents = new FolderEvents(host, this.allocator, this.guard, this.undoStack, this.batchRunner);
 		this.folderEvents.register(this);
-		this.autoFiler = new AutoFiler(host, this.allocator);
+		this.autoFiler = new AutoFiler({ ...host, isSnoozed: () => this.isSnoozed() }, this.allocator);
 		this.autoFiler.register(this);
 
 		this.addSettingTab(new AllocatorSettingTab(this.app, this));
@@ -94,29 +101,124 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		});
 	}
 
-	/** A left-ribbon icon that switches automatic filing on and off. */
+	// ------------------------------------------------------------------ ribbon
+
+	/**
+	 * A left-ribbon icon. Selecting it switches automatic filing on or off; its
+	 * context menu (right-click, or long-press where supported) also offers snooze.
+	 */
 	private registerRibbon(): void {
-		this.ribbonEl = this.addRibbonIcon("zap", "Toggle automatic filing", () => {
-			const { automatic } = this.settings;
-			automatic.enabled = !automatic.enabled;
-			void this.commitSettings();
-			new Notice(`Automatic filing is ${automatic.enabled ? "on" : "off"}.`);
+		this.ribbonEl = this.addRibbonIcon("zap", "Toggle automatic filing", () => this.toggleAutomatic());
+		this.registerDomEvent(this.ribbonEl, "contextmenu", (event: MouseEvent) => {
+			event.preventDefault();
+			this.openRibbonMenu(event);
 		});
 		this.refreshRibbon();
+	}
+
+	private toggleAutomatic(): void {
+		const { automatic } = this.settings;
+		automatic.enabled = !automatic.enabled;
+		if (!automatic.enabled) {
+			this.resumeNow(false);
+		}
+		void this.commitSettings();
+		this.notifier.info(`Automatic filing is ${automatic.enabled ? "on" : "off"}.`);
+	}
+
+	private openRibbonMenu(event: MouseEvent): void {
+		const menu = new Menu();
+		const { automatic } = this.settings;
+		menu.addItem((item) =>
+			item
+				.setTitle(automatic.enabled ? "Turn automatic filing off" : "Turn automatic filing on")
+				.setIcon("zap")
+				.onClick(() => this.toggleAutomatic()),
+		);
+		if (automatic.enabled) {
+			if (this.isSnoozed()) {
+				menu.addItem((item) =>
+					item
+						.setTitle("Resume now")
+						.setIcon("play")
+						.onClick(() => this.resumeNow(true)),
+				);
+			} else {
+				menu.addItem((item) =>
+					item
+						.setTitle("Snooze for 15 minutes")
+						.setIcon("pause")
+						.onClick(() => this.snoozeFor(15)),
+				);
+				menu.addItem((item) =>
+					item
+						.setTitle("Snooze for 1 hour")
+						.setIcon("pause")
+						.onClick(() => this.snoozeFor(60)),
+				);
+			}
+		}
+		menu.showAtMouseEvent(event);
 	}
 
 	/** Shows the current automatic-filing state on the ribbon icon. */
 	refreshRibbon(): void {
 		const on = this.settings.automatic.enabled;
-		this.ribbonEl?.toggleClass("dffa-auto-on", on);
+		const snoozed = on && this.isSnoozed();
+		this.ribbonEl?.toggleClass("dffa-auto-on", on && !snoozed);
+		this.ribbonEl?.toggleClass("dffa-auto-snoozed", snoozed);
+		const state = !on ? "off" : snoozed ? "snoozed" : "on";
 		this.ribbonEl?.setAttribute(
 			"aria-label",
-			`Automatic filing is ${on ? "on" : "off"}. Select to turn it ${on ? "off" : "on"}.`,
+			`Automatic filing is ${state}. Select to turn it ${on ? "off" : "on"}. Right-click for snooze.`,
 		);
 		if (!on) {
 			this.autoFiler?.cancelPending();
 		}
 	}
+
+	// ------------------------------------------------------------------ snooze
+
+	isSnoozed(): boolean {
+		return Date.now() < this.snoozedUntil;
+	}
+
+	/** Minutes left on the snooze, rounded up, or 0 when not snoozed. */
+	snoozeMinutesLeft(): number {
+		return this.isSnoozed() ? Math.ceil((this.snoozedUntil - Date.now()) / 60000) : 0;
+	}
+
+	/** Pauses automatic filing. Changes made while paused are not filed afterwards. */
+	snoozeFor(minutes: number): void {
+		this.clearSnoozeTimer();
+		this.snoozedUntil = Date.now() + minutes * 60000;
+		this.snoozeTimer = window.setTimeout(() => {
+			this.snoozeTimer = null;
+			this.refreshRibbon();
+			this.notifier.info("Automatic filing has resumed.");
+		}, minutes * 60000);
+		this.refreshRibbon();
+		this.notifier.info(`Automatic filing is paused for ${minutes} minutes. Changes made meanwhile are not filed.`);
+	}
+
+	resumeNow(announce: boolean): void {
+		const wasSnoozed = this.isSnoozed();
+		this.clearSnoozeTimer();
+		this.snoozedUntil = 0;
+		this.refreshRibbon();
+		if (announce && wasSnoozed) {
+			this.notifier.info("Automatic filing has resumed.");
+		}
+	}
+
+	private clearSnoozeTimer(): void {
+		if (this.snoozeTimer !== null) {
+			window.clearTimeout(this.snoozeTimer);
+			this.snoozeTimer = null;
+		}
+	}
+
+	// ----------------------------------------------------------- context menu
 
 	/** Adds the two filing commands to the file explorer's context menu. */
 	private registerContextMenu(): void {
@@ -142,6 +244,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	}
 
 	onunload(): void {
+		this.clearSnoozeTimer();
 		this.batchRunner.cancel();
 		DecisionModal.closeAll();
 	}
@@ -156,6 +259,8 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		}
 		return true;
 	}
+
+	// ---------------------------------------------------------------- settings
 
 	/** Saves settings after a user change, stamps them as newest and mirrors them to the data file. */
 	async commitSettings(): Promise<void> {

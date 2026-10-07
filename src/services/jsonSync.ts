@@ -4,6 +4,7 @@ import { parseConfigJson, serialiseConfig } from "../core/jsonSchema";
 import { decideSync, summariseChanges } from "../core/merge";
 import { CONFIG_FILE_NAME, type AllocatorSettings, type ConfigFile } from "../types";
 import type { ConflictSide } from "../ui/SyncConflictModal";
+import type { Notifier } from "./notify";
 
 export type FileState =
 	| { state: "missing" }
@@ -20,6 +21,7 @@ export type SyncOutcome =
 	| "error";
 
 export interface SyncHost {
+	notifier: Notifier;
 	getSettings(): AllocatorSettings;
 	/** Replaces the settings with the (newer) file contents and persists them to data.json. */
 	adoptFileConfig(config: ConfigFile): Promise<void>;
@@ -91,7 +93,7 @@ export class JsonSync {
 				return await this.syncNow(options.manual === true);
 			} catch (error) {
 				console.error("Domain First File Allocator: sync failed", error);
-				new Notice("Domain first file allocator: could not sync the data file. See the console for details.");
+				this.host.notifier.error("Domain first file allocator: could not sync the data file. See the console for details.");
 				return "error";
 			}
 		});
@@ -112,7 +114,7 @@ export class JsonSync {
 			return "created";
 		}
 		if (file.warnings.length > 0 && manual) {
-			new Notice(`Data file: ${file.warnings.join(" ")}`);
+			this.host.notifier.important(`Data file: ${file.warnings.join(" ")}`);
 		}
 
 		switch (decideSync(settings, file.config)) {
@@ -120,11 +122,11 @@ export class JsonSync {
 				return "in-sync";
 			case "use-settings":
 				await this.writeSettings(settings);
-				new Notice("Domain first file allocator: your settings were newer, so the data file was updated.");
+				this.host.notifier.important("Domain first file allocator: your settings were newer, so the data file was updated.");
 				return "settings-used";
 			case "use-file":
 				await this.host.adoptFileConfig(file.config);
-				new Notice("Domain first file allocator: the data file was newer, so your settings were updated from it.");
+				this.host.notifier.important("Domain first file allocator: the data file was newer, so your settings were updated from it.");
 				return "file-used";
 			case "create-file":
 				await this.writeSettings(settings);
@@ -144,13 +146,13 @@ export class JsonSync {
 		if (side === "settings") {
 			this.deferredConflict = null;
 			await this.writeSettings(settings);
-			new Notice("Domain first file allocator: the data file was updated from your settings.");
+			this.host.notifier.important("Domain first file allocator: the data file was updated from your settings.");
 			return "settings-used";
 		}
 		if (side === "file") {
 			this.deferredConflict = null;
 			await this.host.adoptFileConfig(fileConfig);
-			new Notice("Domain first file allocator: your settings were updated from the data file.");
+			this.host.notifier.important("Domain first file allocator: your settings were updated from the data file.");
 			return "file-used";
 		}
 		this.deferredConflict = key;
@@ -170,7 +172,7 @@ export class JsonSync {
 				return "settings-used";
 			} catch (error) {
 				console.error("Domain First File Allocator: could not write the data file", error);
-				new Notice("Domain first file allocator: could not write the data file. See the console for details.");
+				this.host.notifier.error("Domain first file allocator: could not write the data file. See the console for details.");
 				return "error";
 			}
 		});
@@ -184,11 +186,11 @@ export class JsonSync {
 			const path = normalizePath(`${settings.dataFolderName}/${prefix}-${stamp}.json`);
 			try {
 				await this.writeSettings(settings, path);
-				new Notice(`Saved a copy of your settings to ${path}.`);
+				this.host.notifier.info(`Saved a copy of your settings to ${path}.`);
 				return path;
 			} catch (error) {
 				console.error("Domain First File Allocator: export failed", error);
-				new Notice("Domain first file allocator: could not export the file. See the console for details.");
+				this.host.notifier.error("Domain first file allocator: could not export the file. See the console for details.");
 				return null;
 			}
 		});

@@ -1,19 +1,22 @@
-import { Notice, TFile, type App, type TAbstractFile } from "obsidian";
+import { TFile, type App, type TAbstractFile } from "obsidian";
+import { decideAutoFile } from "../core/autoDecision";
 import { nextFreeName } from "../core/conflicts";
-import { isTruthyFlag, readDomainValue } from "../core/domainValue";
+import { isTruthyFlag, needsDomainWrite, readDomainValue } from "../core/domainValue";
 import { isExcluded, joinPath, normaliseFolderPath, parentFolder, samePath } from "../core/paths";
 import { addDomain, findDomain, lookupDomain } from "../core/registry";
-import { OPT_OUT_PROPERTY, type AllocatorSettings, type UndoEntry } from "../types";
+import type { AllocatorSettings, UndoEntry } from "../types";
 import { ChooseDomainModal } from "../ui/ChooseDomainModal";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { NameClashModal, type ClashDecision } from "../ui/NameClashModal";
 import { UnknownDomainModal } from "../ui/UnknownDomainModal";
 import { readFrontmatter, writeProperty, type FrontmatterRecord } from "./frontmatter";
+import type { Notifier } from "./notify";
 import type { UndoStack } from "./undo";
 import type { VaultOps } from "./vaultOps";
 
 export interface AllocatorHost {
 	app: App;
+	notifier: Notifier;
 	getSettings(): AllocatorSettings;
 	commitSettings(): Promise<void>;
 }
@@ -37,7 +40,10 @@ export type MoveOutcome =
 	| { status: "moved"; entry: UndoEntry; destinationFolder: string; caveat?: string }
 	| { status: "unchanged" | "skipped" | "cancelled" };
 
-/** The two single-note flows: file by domain, and set domain from folder. */
+/** "open" means the note is open in the editor and should be tried again once it is closed. */
+export type AutoFileResult = "done" | "busy" | "open";
+
+/** The single-note flows: file by domain, set domain from folder, and automatic filing. */
 export class Allocator {
 	private busy = false;
 
@@ -55,6 +61,10 @@ export class Allocator {
 		return this.host.getSettings();
 	}
 
+	private get notify(): Notifier {
+		return this.host.notifier;
+	}
+
 	// ---------------------------------------------------------------- commands
 
 	async fileByDomain(file: TFile): Promise<void> {
@@ -67,7 +77,7 @@ export class Allocator {
 
 	private async exclusively(task: () => Promise<void>): Promise<void> {
 		if (this.busy) {
-			new Notice("Domain first file allocator is still working on another note.");
+			this.notify.important("Domain first file allocator is still working on another note.");
 			return;
 		}
 		this.busy = true;
@@ -76,57 +86,57 @@ export class Allocator {
 		} catch (error) {
 			console.error("Domain First File Allocator:", error);
 			const detail = error instanceof Error ? ` ${error.message}` : "";
-			new Notice(`Domain first file allocator: something went wrong.${detail}`);
+			this.notify.error(`Domain first file allocator: something went wrong.${detail}`);
 		} finally {
 			this.busy = false;
 		}
 	}
 
+	// -------------------------------------------------------- automatic filing
+
 	/**
-	 * Files a note without asking anything. Only an enabled, registered domain
-	 * (or, if `includeNoDomain`, an empty one going to the fallback) is acted on;
-	 * unknown, disabled, multiple or invalid values are left alone without fuss,
-	 * because the user may still be typing. A name clash skips the note.
+	 * Files a note without asking anything, following the automatic-filing
+	 * settings. Unclear cases (unknown, disabled, blocked, ambiguous) are left
+	 * alone quietly, because the user may still be typing. A name clash skips
+	 * the note and says so; nothing is ever replaced.
 	 */
-	async autoFile(file: TFile, includeNoDomain: boolean): Promise<"done" | "busy"> {
+	async autoFile(file: TFile): Promise<AutoFileResult> {
 		if (this.busy) {
 			return "busy";
 		}
 		this.busy = true;
 		try {
-			await this.runAutoFile(file, includeNoDomain);
+			return await this.runAutoFile(file);
 		} catch (error) {
 			console.error("Domain First File Allocator:", error);
-			new Notice(`Domain first file allocator: automatic filing of "${file.basename}" failed.`);
+			this.notify.error(`Domain first file allocator: automatic filing of "${file.basename}" failed.`);
+			return "done";
 		} finally {
 			this.busy = false;
 		}
-		return "done";
 	}
 
-	private async runAutoFile(file: TFile, includeNoDomain: boolean): Promise<void> {
+	private async runAutoFile(file: TFile): Promise<AutoFileResult> {
 		if (this.skipReason(file) !== null) {
-			return;
+			return "done";
 		}
 		const settings = this.settings;
-		const read = readDomainValue(this.frontmatterOf(file)?.[settings.propertyName]);
-
-		let request: MoveRequest;
-		if (read.kind === "missing") {
-			if (!includeNoDomain || !settings.fallback.enabled) {
-				return;
-			}
-			request = { file, targetFolder: settings.fallback.folder };
-		} else if (read.kind === "single") {
-			const lookup = lookupDomain(settings.domains, read.value);
-			if (lookup.status !== "enabled") {
-				return;
-			}
-			request = { file, targetFolder: lookup.entry.folder, domainValue: lookup.entry.folder };
-		} else {
-			return;
+		const decision = decideAutoFile({
+			read: readDomainValue(this.frontmatterOf(file)?.[settings.propertyName]),
+			domains: settings.domains,
+			fallback: settings.fallback,
+			automatic: settings.automatic,
+			currentFolder: parentFolder(file.path),
+			isOpenNote: this.app.workspace.getActiveFile() === file,
+		});
+		if (decision.action === "wait-for-close") {
+			return "open";
+		}
+		if (decision.action === "skip") {
+			return "done";
 		}
 
+		const request: MoveRequest = { file, targetFolder: decision.targetFolder, domainValue: decision.domainValue };
 		const outcome = await this.moveNote(request, () => Promise.resolve({ action: "skip", applyToAll: false }));
 		if (outcome.status === "moved") {
 			this.undo.record({
@@ -134,12 +144,15 @@ export class Allocator {
 				entries: [outcome.entry],
 				caveats: [],
 			});
-			new Notice(`Automatically filed "${file.basename}" to "${outcome.destinationFolder}".`);
+			if (!settings.automatic.quiet) {
+				this.notify.info(`Automatically filed "${file.basename}" to "${outcome.destinationFolder}".`);
+			}
 		} else if (outcome.status === "skipped") {
-			new Notice(
+			this.notify.important(
 				`Automatic filing left "${file.basename}" in place because "${request.targetFolder}" already has a note with that name.`,
 			);
 		}
+		return "done";
 	}
 
 	// -------------------------------------------------------- file by domain
@@ -152,7 +165,9 @@ export class Allocator {
 		const read = readDomainValue(this.frontmatterOf(file)?.[settings.propertyName]);
 
 		if (read.kind === "invalid") {
-			new Notice(`The "${settings.propertyName}" property on "${file.basename}" cannot be used. ${read.reason}`);
+			this.notify.important(
+				`The "${settings.propertyName}" property on "${file.basename}" cannot be used. ${read.reason}`,
+			);
 			return;
 		}
 		if (read.kind === "missing") {
@@ -162,11 +177,16 @@ export class Allocator {
 
 		let value: string;
 		if (read.kind === "multiple") {
-			const chosen = await new ChooseDomainModal(this.app, file.basename, read.values, settings.domains).ask();
-			if (chosen === null) {
-				return;
+			const [first] = read.values;
+			if (settings.prompts.multipleValues === "first" && first !== undefined) {
+				value = first;
+			} else {
+				const chosen = await new ChooseDomainModal(this.app, file.basename, read.values, settings.domains).ask();
+				if (chosen === null) {
+					return;
+				}
+				value = chosen;
 			}
-			value = chosen;
 		} else {
 			value = read.value;
 		}
@@ -181,12 +201,17 @@ export class Allocator {
 			return;
 		}
 
-		const choice = await new UnknownDomainModal(this.app, {
-			domain: value,
-			disabled: lookup.status === "disabled",
-			fallbackEnabled: settings.fallback.enabled,
-			fallbackFolder: settings.fallback.folder,
-		}).ask();
+		// A domain the user switched off is never turned back on without asking.
+		const policy = lookup.status === "disabled" && settings.prompts.unknownDomain === "add" ? "ask" : settings.prompts.unknownDomain;
+		const choice =
+			policy === "ask"
+				? await new UnknownDomainModal(this.app, {
+						domain: value,
+						disabled: lookup.status === "disabled",
+						fallbackEnabled: settings.fallback.enabled,
+						fallbackFolder: settings.fallback.folder,
+					}).ask()
+				: policy;
 
 		if (choice === "fallback") {
 			await this.fileToFallback(file, `The domain "${value}" is not available.`);
@@ -201,25 +226,26 @@ export class Allocator {
 	private async fileToFallback(file: TFile, reason: string): Promise<void> {
 		const { fallback } = this.settings;
 		if (!fallback.enabled) {
-			new Notice(`${reason} The fallback folder is turned off, so the note stays where it is.`);
+			this.notify.important(`${reason} The fallback folder is turned off, so the note stays where it is.`);
 			return;
 		}
 		await this.moveWithDialogues({ file, targetFolder: fallback.folder });
 	}
 
 	/**
-	 * Registers (or re-enables) a domain, creating its folder after confirmation
-	 * if needed. Returns the registered folder path, or null if nothing was done.
+	 * Registers (or re-enables) a domain, creating its folder if needed (after
+	 * confirmation, unless the user chose to create folders automatically).
+	 * Returns the registered folder path, or null if nothing was done.
 	 */
 	private async registerDomain(value: string): Promise<string | null> {
 		const settings = this.settings;
 		const normalised = normaliseFolderPath(value);
 		if (normalised === "") {
-			new Notice("That value is not a usable folder path.");
+			this.notify.important("That value is not a usable folder path.");
 			return null;
 		}
 		if (isExcluded(normalised, settings.excludeFolders, settings.dataFolderName)) {
-			new Notice(`"${normalised}" is inside an excluded folder, so it cannot be a domain.`);
+			this.notify.important(`"${normalised}" is inside an excluded folder, so it cannot be a domain.`);
 			return null;
 		}
 
@@ -232,11 +258,13 @@ export class Allocator {
 
 		let folderPath = this.ops.findFolder(normalised)?.path ?? null;
 		if (folderPath === null) {
-			const create = await new ConfirmModal(this.app, {
-				title: "Create folder?",
-				lines: [`The folder "${normalised}" does not exist yet. Create it and add it as a domain?`],
-				confirmText: "Create and add",
-			}).ask();
+			const create =
+				settings.prompts.createFolder === "auto" ||
+				(await new ConfirmModal(this.app, {
+					title: "Create folder?",
+					lines: [`The folder "${normalised}" does not exist yet. Create it and add it as a domain?`],
+					confirmText: "Create and add",
+				}).ask());
 			if (!create) {
 				return null;
 			}
@@ -245,7 +273,7 @@ export class Allocator {
 
 		const added = addDomain(settings.domains, folderPath);
 		if (!added.ok) {
-			new Notice(added.reason);
+			this.notify.important(added.reason);
 			return null;
 		}
 		settings.domains = added.registry;
@@ -262,23 +290,25 @@ export class Allocator {
 		const settings = this.settings;
 		const folderPath = parentFolder(file.path);
 		if (folderPath === "") {
-			new Notice(`"${file.basename}" is in the vault root, which cannot be a domain.`);
+			this.notify.important(`"${file.basename}" is in the vault root, which cannot be a domain.`);
 			return;
 		}
 
 		let entry = findDomain(settings.domains, folderPath);
 		if (!entry) {
-			const register = await new ConfirmModal(this.app, {
-				title: "Register this folder?",
-				lines: [`"${folderPath}" is not a registered domain. Register it so the note can use it?`],
-				confirmText: "Register and continue",
-			}).ask();
+			const register =
+				settings.prompts.registerFolder === "auto" ||
+				(await new ConfirmModal(this.app, {
+					title: "Register this folder?",
+					lines: [`"${folderPath}" is not a registered domain. Register it so the note can use it?`],
+					confirmText: "Register and continue",
+				}).ask());
 			if (!register) {
 				return;
 			}
 			const added = addDomain(settings.domains, folderPath);
 			if (!added.ok) {
-				new Notice(added.reason);
+				this.notify.important(added.reason);
 				return;
 			}
 			settings.domains = added.registry;
@@ -288,7 +318,7 @@ export class Allocator {
 
 		const oldValue = this.frontmatterOf(file)?.[settings.propertyName];
 		if (oldValue === entry.folder) {
-			new Notice(`"${file.basename}" already has ${settings.propertyName}: ${entry.folder}.`);
+			this.notify.info(`"${file.basename}" already has ${settings.propertyName}: ${entry.folder}.`);
 			return;
 		}
 
@@ -307,14 +337,14 @@ export class Allocator {
 			caveats: [],
 		});
 		const disabledNote = entry.enabled ? "" : " This domain is disabled, so filing by domain will use the fallback.";
-		new Notice(`Set ${settings.propertyName} to "${entry.folder}".${disabledNote}`);
+		this.notify.info(`Set ${settings.propertyName} to "${entry.folder}".${disabledNote}`);
 	}
 
 	// ------------------------------------------------------------- moving
 
-	/** Moves one note, asking about name clashes, then records undo and reports the result. */
+	/** Moves one note, settling name clashes as the user prefers, then records undo and reports the result. */
 	private async moveWithDialogues(request: MoveRequest): Promise<void> {
-		const outcome = await this.moveNote(request, (context) => this.askAboutClash(context));
+		const outcome = await this.moveNote(request, (context) => this.resolveClash(context));
 		switch (outcome.status) {
 			case "moved":
 				this.undo.record({
@@ -322,19 +352,27 @@ export class Allocator {
 					entries: [outcome.entry],
 					caveats: outcome.caveat ? [outcome.caveat] : [],
 				});
-				new Notice(`Moved "${request.file.basename}" to "${outcome.destinationFolder}".`);
+				this.notify.info(`Moved "${request.file.basename}" to "${outcome.destinationFolder}".`);
 				break;
 			case "unchanged":
-				new Notice(`"${request.file.basename}" is already in "${request.targetFolder}".`);
+				this.notify.info(`"${request.file.basename}" is already in "${request.targetFolder}".`);
 				break;
 			case "skipped":
 			case "cancelled":
-				new Notice(`"${request.file.basename}" was left where it is.`);
+				this.notify.info(`"${request.file.basename}" was left where it is.`);
 				break;
 		}
 	}
 
-	private askAboutClash(context: ClashContext): Promise<ClashDecision> {
+	/** Applies the name-clash policy. Replace is never automatic: only the dialogue offers it. */
+	private resolveClash(context: ClashContext): Promise<ClashDecision> {
+		const policy = this.settings.prompts.nameClash;
+		if (policy === "keep-both") {
+			return Promise.resolve({ action: "keep-both", applyToAll: false });
+		}
+		if (policy === "skip") {
+			return Promise.resolve({ action: "skip", applyToAll: false });
+		}
 		const { file, existing, destinationFolder } = context;
 		return new NameClashModal(this.app, {
 			incomingName: file.name,
@@ -391,7 +429,7 @@ export class Allocator {
 		await this.ops.moveFile(file, joinPath(destinationFolder, finalName));
 
 		let newValue = oldValue;
-		if (domainValue !== undefined && oldValue !== domainValue) {
+		if (domainValue !== undefined && needsDomainWrite(oldValue, domainValue, this.settings.writeCanonicalCasing)) {
 			await this.writeProperty(file, propertyName, domainValue);
 			newValue = domainValue;
 		}
@@ -412,8 +450,8 @@ export class Allocator {
 		if (isExcluded(file.path, settings.excludeFolders, settings.dataFolderName)) {
 			return `"${file.basename}" is in an excluded folder, so it was left alone.`;
 		}
-		if (isTruthyFlag(this.frontmatterOf(file)?.[OPT_OUT_PROPERTY])) {
-			return `"${file.basename}" has ${OPT_OUT_PROPERTY}: true, so it was left alone.`;
+		if (isTruthyFlag(this.frontmatterOf(file)?.[settings.optOutProperty])) {
+			return `"${file.basename}" has ${settings.optOutProperty}: true, so it was left alone.`;
 		}
 		return null;
 	}
@@ -421,7 +459,7 @@ export class Allocator {
 	private isEligible(file: TFile): boolean {
 		const reason = this.skipReason(file);
 		if (reason !== null) {
-			new Notice(reason);
+			this.notify.info(reason);
 		}
 		return reason === null;
 	}

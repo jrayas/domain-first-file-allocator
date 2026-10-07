@@ -109,3 +109,7 @@
 .dffa-auto-on {
 	color: var(--interactive-accent);
 }
+
+.dffa-auto-snoozed {
+	color: var(--text-warning);
+}
