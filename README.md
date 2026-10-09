@@ -20,7 +20,19 @@ The two filing commands are separate on purpose: when a note's folder and its pr
 
 ### Automatic filing
 
-Off by default. Turn it on in settings, or select the **lightning-bolt icon in the left ribbon** to switch it on and off. The icon is highlighted while it is on, and dimmed while snoozed. On mobile it is in the ribbon menu. Right-click the icon (or long-press, where your device supports it) for **Snooze for 15 minutes**, **Snooze for 1 hour** and **Resume now**.
+**On by default.** Type a domain into a note and, a couple of seconds later, the note moves to that folder, with no command to run. It only ever acts on domains you have registered, so it does nothing until you set some up.
+
+To switch it off, use the Automatic filing tab, or select the **lightning-bolt icon in the left ribbon**, which toggles it on and off. The icon is highlighted while it is on, and dimmed while snoozed.
+
+How it works, step by step:
+
+1. You change the domain property of a note (typing it, pasting it, or using the Properties panel).
+2. The plugin waits for the **delay** (2 seconds by default) after your last change, so a half-typed value is ignored.
+3. It checks the value. If it is a registered domain that is switched on and not set to *Manual only*, the note moves to that folder and the property is tidied to the folder's real spelling.
+4. If the value is not usable (not registered, switched off, Manual only, or a list of several), the note stays put and a notice says why, once per note and value. You can then register the domain, or run **File note by domain** for the full set of choices.
+5. The move is recorded, so **Undo last allocation** reverses it.
+
+It is deliberately cautious: it never opens dialogues, never replaces a note, skips excluded folders and opted-out notes, and leaves a note alone if the destination already has one with the same name. On mobile it is in the ribbon menu. Right-click the icon (or long-press, where your device supports it) for **Snooze for 15 minutes**, **Snooze for 1 hour** and **Resume now**.
 
 When on, a note is filed by its domain a few seconds after its domain property last changed. The delay is adjustable from 1 to 60 seconds, so a half-typed value is not acted on.
 
@@ -28,7 +40,7 @@ When on, a note is filed by its domain a few seconds after its domain property l
 - It acts only on a value that matches a registered, **enabled** domain that is not set to *Manual only*. Unknown, disabled, multi-value and invalid values are left alone, quietly, and no dialogue opens.
 - A **name clash** leaves the note in place and shows a notice. It never replaces or renames anything.
 - Excluded folders and the opt-out property are respected.
-- **Never move the open note** (on by default) holds back a note that is open in the editor, and files it once you switch to another note.
+- **Never move the open note** (off by default) holds back a note that is open in the editor, and files it once you switch to another note. Leave it off if you want the note you are typing in to move.
 - **Only file notes in the fallback folder** limits automatic filing to an inbox-style folder.
 - **Also file notes with no domain** (off by default) sends new notes, and notes whose domain was removed, to the fallback folder. Leave it off unless you want every unfiled note moved.
 - **Quiet moves** hides the notice for a successful automatic move. Skips and errors are still shown.
@@ -125,9 +137,9 @@ Some confirmations are **never** switched off: **Replace** (needs a second confi
 
 | Setting | Default | Notes |
 | --- | --- | --- |
-| File notes automatically | off | Also toggled by the left-ribbon icon. |
+| File notes automatically | on | Also toggled by the left-ribbon icon. |
 | Delay | 2 seconds | 1 to 60. How long after the domain property last changed a note is filed. |
-| Never move the open note | on | The note is filed once you switch away from it. |
+| Never move the open note | off | When on, the note is filed once you switch away from it. |
 | Only file notes in the fallback folder | off | Limits automatic filing to notes already in the fallback folder. |
 | Also file notes with no domain | off | Sends new and domainless notes to the fallback folder. |
 | Quiet moves | off | No notice for a successful automatic move. |
@@ -169,11 +181,11 @@ The settings are mirrored to `<data folder name>/folder.json` in the vault root 
   "excludeFolders": ["Templates", ".domain"],
   "folderMovePrompt": "ask",
   "automatic": {
-    "enabled": false,
+    "enabled": true,
     "delaySeconds": 2,
     "includeNoDomain": false,
     "onlyInFallback": false,
-    "skipOpenNote": true,
+    "skipOpenNote": false,
     "quiet": false
   },
   "prompts": {
@@ -253,7 +265,9 @@ Obsidian Sync does not sync hidden folders such as `.domain` by default. If you 
 
 **I do not see notices any more.** Check **Notice level** on the General tab. Errors are always shown.
 
-**A note was not filed automatically.** Its domain may be unknown, off, or set to *Manual only*; it may be open in the editor (it is filed when you switch away); it may be outside the fallback folder while **Only file notes in the fallback folder** is on; or automatic filing may be snoozed.
+**A note was not filed automatically.** Automatic filing may be switched off (check the ribbon icon, which is highlighted when on, or the Automatic filing tab). The domain may be unknown, off, or set to *Manual only*; a notice normally says which. The note may be open in the editor while **Never move the open note** is on (it is filed when you switch away); it may be outside the fallback folder while **Only file notes in the fallback folder** is on; or automatic filing may be snoozed.
+
+**I updated the plugin and automatic filing is still off.** The new defaults apply to a fresh install. If you saved settings before, your earlier choice is kept: turn on **File notes automatically** and turn off **Never move the open note** on the Automatic filing tab, or select the ribbon icon.
 
 **Reset removed my domains.** Reset also clears the registry. A backup named `folder-backup-<date>.json` was saved beside the data file; use **Import** to bring it back.
 

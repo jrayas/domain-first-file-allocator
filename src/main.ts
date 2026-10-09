@@ -123,7 +123,8 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 			this.resumeNow(false);
 		}
 		void this.commitSettings();
-		this.notifier.info(`Automatic filing is ${automatic.enabled ? "on" : "off"}.`);
+		// Important, not routine: this is the only feedback that the click did something.
+		this.notifier.important(`Automatic filing is ${automatic.enabled ? "on" : "off"}.`);
 	}
 
 	private openRibbonMenu(event: MouseEvent): void {

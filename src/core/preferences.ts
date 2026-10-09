@@ -93,12 +93,15 @@ function pickNumber(
 // ------------------------------------------------------------------ automatic
 
 export function createDefaultAutomatic(): AutomaticSettings {
+	// On by default, and the open note is not held back, so typing a domain into a
+	// note files it a couple of seconds later. Only registered, enabled domains
+	// are ever acted on, so this is safe before any domain has been set up.
 	return {
-		enabled: false,
+		enabled: true,
 		delaySeconds: 2,
 		includeNoDomain: false,
 		onlyInFallback: false,
-		skipOpenNote: true,
+		skipOpenNote: false,
 		quiet: false,
 	};
 }

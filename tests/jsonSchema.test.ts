@@ -64,7 +64,7 @@ describe("parseConfigJson", () => {
 	});
 	it("defaults the optional automatic block when it is absent", () => {
 		const result = parse(valid);
-		expect(result.ok && result.config.automatic).toEqual({ ...createDefaultAutomatic(), enabled: false, delaySeconds: 2, includeNoDomain: false });
+		expect(result.ok && result.config.automatic).toEqual(createDefaultAutomatic());
 	});
 	it("reads a valid automatic block and rounds the delay", () => {
 		const result = parse({ ...valid, automatic: { enabled: true, delaySeconds: 3.6, includeNoDomain: true } });
@@ -156,7 +156,7 @@ describe("automatic settings helpers", () => {
 		expect(clampDelay(Number.NaN)).toBe(2);
 	});
 	it("reads automatic settings field by field", () => {
-		expect(readAutomatic(undefined)).toEqual({ ...createDefaultAutomatic(), enabled: false, delaySeconds: 2, includeNoDomain: false });
+		expect(readAutomatic(undefined)).toEqual(createDefaultAutomatic());
 		expect(readAutomatic({ enabled: true, delaySeconds: "x", includeNoDomain: 1 })).toEqual({
 			...createDefaultAutomatic(),
 			enabled: true,

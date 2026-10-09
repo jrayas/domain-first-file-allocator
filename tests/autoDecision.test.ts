@@ -83,15 +83,20 @@ describe("decideAutoFile", () => {
 	});
 
 	describe("the open note", () => {
+		it("files the open note by default, so typing a domain into a note files it", () => {
+			expect(decideAutoFile(context({ isOpenNote: true }))).toMatchObject({ action: "file" });
+		});
 		it("waits for the note to be closed when asked to skip open notes", () => {
-			expect(decideAutoFile(context({ isOpenNote: true }))).toEqual({ action: "wait-for-close" });
+			const automatic = { ...createDefaultAutomatic(), enabled: true, skipOpenNote: true };
+			expect(decideAutoFile(context({ automatic, isOpenNote: true }))).toEqual({ action: "wait-for-close" });
 		});
 		it("is filed when skipping open notes is off", () => {
 			const automatic = { ...createDefaultAutomatic(), enabled: true, skipOpenNote: false };
 			expect(decideAutoFile(context({ automatic, isOpenNote: true }))).toMatchObject({ action: "file" });
 		});
 		it("does not wait for a note it would not move anyway", () => {
-			expect(decideAutoFile(context({ isOpenNote: true }, "Nowhere"))).toEqual({
+			const automatic = { ...createDefaultAutomatic(), enabled: true, skipOpenNote: true };
+			expect(decideAutoFile(context({ automatic, isOpenNote: true }, "Nowhere"))).toEqual({
 				action: "skip",
 				reason: "not-registered",
 			});

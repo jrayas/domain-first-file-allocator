@@ -1,7 +1,7 @@
 import { TFile, type App, type TAbstractFile } from "obsidian";
-import { decideAutoFile } from "../core/autoDecision";
+import { decideAutoFile, type AutoSkipReason } from "../core/autoDecision";
 import { nextFreeName } from "../core/conflicts";
-import { isTruthyFlag, needsDomainWrite, readDomainValue } from "../core/domainValue";
+import { isTruthyFlag, needsDomainWrite, readDomainValue, type DomainRead } from "../core/domainValue";
 import { isExcluded, joinPath, normaliseFolderPath, parentFolder, samePath } from "../core/paths";
 import { addDomain, findDomain, lookupDomain } from "../core/registry";
 import type { AllocatorSettings, UndoEntry } from "../types";
@@ -46,6 +46,8 @@ export type AutoFileResult = "done" | "busy" | "open";
 /** The single-note flows: file by domain, set domain from folder, and automatic filing. */
 export class Allocator {
 	private busy = false;
+	/** Reasons already explained to the user this session, so each is mentioned only once. */
+	private readonly explained = new Set<string>();
 
 	constructor(
 		private readonly host: AllocatorHost,
@@ -121,8 +123,9 @@ export class Allocator {
 			return "done";
 		}
 		const settings = this.settings;
+		const read = readDomainValue(this.frontmatterOf(file)?.[settings.propertyName]);
 		const decision = decideAutoFile({
-			read: readDomainValue(this.frontmatterOf(file)?.[settings.propertyName]),
+			read,
 			domains: settings.domains,
 			fallback: settings.fallback,
 			automatic: settings.automatic,
@@ -133,6 +136,7 @@ export class Allocator {
 			return "open";
 		}
 		if (decision.action === "skip") {
+			this.explainAutoSkip(file, decision.reason, read);
 			return "done";
 		}
 
@@ -153,6 +157,34 @@ export class Allocator {
 			);
 		}
 		return "done";
+	}
+
+	/**
+	 * Says why a note with a domain value was not filed, so a silent no-op does not
+	 * look like a bug. Shown once per note and value, and only at the "important"
+	 * notice level. Cases that are normal (already in place, no domain) stay quiet.
+	 */
+	private explainAutoSkip(file: TFile, reason: AutoSkipReason, read: DomainRead): void {
+		const value = read.kind === "single" ? read.value : null;
+		let message: string | null = null;
+		if (reason === "not-registered" && value !== null) {
+			message = `"${value}" is not a registered domain. Add it in settings, or run File note by domain.`;
+		} else if (reason === "disabled" && value !== null) {
+			message = `the domain "${value}" is switched off.`;
+		} else if (reason === "blocked" && value !== null) {
+			message = `the domain "${value}" is set to Manual only.`;
+		} else if (reason === "ambiguous") {
+			message = "it has several domains. Run File note by domain to choose one.";
+		}
+		if (message === null) {
+			return;
+		}
+		const key = `${file.path}\u0000${reason}\u0000${value ?? ""}`;
+		if (this.explained.has(key)) {
+			return;
+		}
+		this.explained.add(key);
+		this.notify.important(`Automatic filing left "${file.basename}" where it is: ${message}`);
 	}
 
 	// -------------------------------------------------------- file by domain

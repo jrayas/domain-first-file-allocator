@@ -43,11 +43,19 @@ describe("parsePrompts", () => {
 });
 
 describe("parseAutomatic", () => {
-	it("defaults the safe options", () => {
+	it("is on by default and does not hold back the open note", () => {
 		const { value } = parseAutomatic({});
+		expect(value.enabled).toBe(true);
+		expect(value.skipOpenNote).toBe(false);
+	});
+	it("leaves the riskier options off by default", () => {
+		const { value } = parseAutomatic({});
+		expect(value.includeNoDomain).toBe(false);
 		expect(value.onlyInFallback).toBe(false);
-		expect(value.skipOpenNote).toBe(true);
 		expect(value.quiet).toBe(false);
+	});
+	it("keeps an explicit choice to turn it off", () => {
+		expect(parseAutomatic({ enabled: false }).value.enabled).toBe(false);
 	});
 	it("loads a block written before the newer fields existed", () => {
 		const { value, errors } = parseAutomatic({ enabled: true, delaySeconds: 5, includeNoDomain: true });

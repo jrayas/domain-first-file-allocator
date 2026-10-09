@@ -129,7 +129,13 @@ Give three notes `domain: Areas/Finance`, one `domain: Areas/Finance/2026`, and 
 
 ## Automatic filing
 
-Start with automatic filing **off**.
+On a fresh install automatic filing is **on**, and **Never move the open note** is **off**. Test that first, then turn it off for the "off" checks.
+
+- [ ] On a fresh install (no saved settings), the ribbon icon is highlighted and the Automatic filing tab shows it on.
+- [ ] With `domain: Areas/Finance` registered, typing that value into the open note moves it after about the delay, with the editor staying on the note and no command run.
+- [ ] Typing a value that is not registered leaves the note, and one notice says it is not a registered domain. Changing the value again to another unknown one gives one more notice; repeating the same one does not.
+- [ ] A value set to Manual only, or switched off, gives a matching one-time notice.
+- [ ] Selecting the ribbon icon always shows a notice ("Automatic filing is on/off") unless the notice level is Errors only, and the icon highlight changes.
 
 - [ ] A left-ribbon icon (lightning bolt) is present. On mobile it is in the ribbon menu.
 - [ ] Its tooltip says automatic filing is off and offers to turn it on.
