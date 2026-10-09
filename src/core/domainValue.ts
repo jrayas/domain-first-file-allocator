@@ -88,9 +88,17 @@ export function describeValue(raw: unknown): string {
 		return "(none)";
 	}
 	if (Array.isArray(raw)) {
-		return (raw as unknown[]).map((item) => String(item)).join(", ");
+		return (raw as unknown[]).map(itemText).join(", ");
 	}
-	return typeof raw === "object" ? JSON.stringify(raw) : String(raw);
+	return itemText(raw);
+}
+
+/** Text for one value: plain values as they are, anything else as JSON, so an object never prints as [object Object]. */
+function itemText(value: unknown): string {
+	if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+	return JSON.stringify(value) ?? "";
 }
 
 /**

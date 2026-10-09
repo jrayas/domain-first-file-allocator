@@ -97,7 +97,7 @@ export function parseConfigJson(text: string): ParseResult {
 
 	const excludeFolders = [
 		...new Set(
-			(raw.excludeFolders as string[]).map(normaliseFolderPath).filter((folder) => folder !== ""),
+			raw.excludeFolders.map(normaliseFolderPath).filter((folder) => folder !== ""),
 		),
 	];
 

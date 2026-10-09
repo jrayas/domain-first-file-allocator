@@ -34,7 +34,6 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 		.setClass("dffa-stacked")
 		.addText((text) =>
 			text
-				.setPlaceholder("domain")
 				.setValue(settings.propertyName)
 				.onChange((value) => {
 					if (value.trim() === "") {
@@ -51,7 +50,6 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 		.setClass("dffa-stacked")
 		.addText((text) =>
 			text
-				.setPlaceholder("skip-allocator")
 				.setValue(settings.optOutProperty)
 				.onChange((value) => {
 					if (value.trim() === "") {

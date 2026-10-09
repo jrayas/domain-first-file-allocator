@@ -202,15 +202,15 @@ export class JsonSync {
 		}
 		this.lastReportedError = error;
 
-		const fragment = document.createDocumentFragment();
-		const message = document.createElement("div");
-		message.textContent = `Domain first file allocator: the data file at ${this.filePath} is unusable and has been left untouched. ${error} Your current settings are still in use.`;
-		const button = document.createElement("button");
-		button.textContent = "Export a fresh file";
-		button.addEventListener("click", () => {
-			void this.exportFreshCopy();
+		const fragment = createFragment((content) => {
+			content.createDiv({
+				text: `Domain first file allocator: the data file at ${this.filePath} is unusable and has been left untouched. ${error} Your current settings are still in use.`,
+			});
+			const button = content.createEl("button", { text: "Export a fresh file" });
+			button.addEventListener("click", () => {
+				void this.exportFreshCopy();
+			});
 		});
-		fragment.append(message, button);
 		new Notice(fragment, 15000);
 	}
 }

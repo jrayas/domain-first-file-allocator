@@ -75,7 +75,7 @@ export function renderData(el: HTMLElement, ctx: TabContext): void {
 		"Actions Undo can reverse",
 		"Undo steps back one action at a time. Kept in memory only.",
 		UNDO_CHOICES,
-		`${settings.undoDepth}` as `${UndoDepth}`,
+		`${settings.undoDepth}`,
 		(value) => {
 			settings.undoDepth = Number(value) as UndoDepth;
 			ctx.commit();
@@ -110,22 +110,19 @@ export function renderData(el: HTMLElement, ctx: TabContext): void {
 	new Setting(el)
 		.setName("Reset to defaults")
 		.setDesc("A backup is saved first.")
-		.addButton((button) =>
-			button
-				.setButtonText("Reset")
-				.setWarning()
-				.onClick(() => {
-					void resetToDefaults(ctx);
-				}),
-		);
+		.addButton((button) => {
+			// mod-warning is the class the deprecated setWarning() added, and works on every version.
+			button.buttonEl.addClass("mod-warning");
+			button.setButtonText("Reset").onClick(() => {
+				void resetToDefaults(ctx);
+			});
+		});
 }
 
 /** Asks the user for a JSON file using the platform's own file picker (works on mobile). */
 function pickFileText(): Promise<string | null> {
 	return new Promise((resolve) => {
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = ".json,application/json";
+		const input = createEl("input", { type: "file", attr: { accept: ".json,application/json" } });
 		input.addEventListener("change", () => {
 			const file = input.files?.[0];
 			if (!file) {

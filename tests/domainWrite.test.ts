@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { needsDomainWrite } from "../src/core/domainValue";
+import { describeValue, needsDomainWrite } from "../src/core/domainValue";
 
 describe("needsDomainWrite", () => {
 	it("never rewrites a value that is already exact", () => {
@@ -22,5 +22,16 @@ describe("needsDomainWrite", () => {
 		expect(needsDomainWrite(["Areas/Finance"], "Areas/Finance", false)).toBe(true);
 		expect(needsDomainWrite(2026, "2026", false)).toBe(true);
 		expect(needsDomainWrite(undefined, "Areas/Finance", false)).toBe(true);
+	});
+});
+
+describe("describeValue with awkward values", () => {
+	it("never prints [object Object] for an object inside a list", () => {
+		expect(describeValue(["A", { b: 1 }, null])).toBe('A, {"b":1}, null');
+	});
+	it("writes plain values as they are", () => {
+		expect(describeValue(12)).toBe("12");
+		expect(describeValue(false)).toBe("false");
+		expect(describeValue("")).toBe("");
 	});
 });

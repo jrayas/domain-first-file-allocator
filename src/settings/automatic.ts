@@ -104,13 +104,13 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 	if (automatic.enabled && minutesLeft === 0) {
 		snooze
 			.addButton((button) =>
-				button.setButtonText("15 minutes").onClick(() => {
+				button.setButtonText("Snooze 15 minutes").onClick(() => {
 					plugin.snoozeFor(15);
 					ctx.redraw();
 				}),
 			)
 			.addButton((button) =>
-				button.setButtonText("1 hour").onClick(() => {
+				button.setButtonText("Snooze 1 hour").onClick(() => {
 					plugin.snoozeFor(60);
 					ctx.redraw();
 				}),

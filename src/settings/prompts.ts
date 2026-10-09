@@ -1,6 +1,6 @@
 import { Setting, debounce, setIcon } from "obsidian";
 import { MAX_PREVIEW_THRESHOLD, MIN_PREVIEW_THRESHOLD } from "../core/preferences";
-import { NAMED_PRESETS, applyPreset, detectPreset, type NamedPreset } from "../core/presets";
+import { NAMED_PRESETS, applyPreset, detectPreset } from "../core/presets";
 import type {
 	AskOrAuto,
 	FolderMovePrompt,
@@ -84,7 +84,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 		if (value === "custom") {
 			return;
 		}
-		const next = applyPreset(value as NamedPreset, { prompts, folderMovePrompt: settings.folderMovePrompt });
+		const next = applyPreset(value, { prompts, folderMovePrompt: settings.folderMovePrompt });
 		settings.prompts = next.prompts;
 		settings.folderMovePrompt = next.folderMovePrompt;
 		changed();

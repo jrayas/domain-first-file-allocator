@@ -71,13 +71,23 @@ export function addSlider(
 	value: number,
 	onChange: (value: number) => void,
 ): Setting {
-	return new Setting(el)
+	// The value is written beside the slider, because the slider's own tooltip is deprecated.
+	let label: HTMLElement | null = null;
+	const setting = new Setting(el)
 		.setName(name)
 		.setDesc(desc)
 		.setClass("dffa-stacked")
 		.addSlider((slider) =>
-			slider.setLimits(limits.min, limits.max, 1).setValue(value).setDynamicTooltip().onChange(onChange),
+			slider
+				.setLimits(limits.min, limits.max, 1)
+				.setValue(value)
+				.onChange((chosen) => {
+					label?.setText(String(chosen));
+					onChange(chosen);
+				}),
 		);
+	label = setting.controlEl.createSpan({ cls: "dffa-slider-value", text: String(value) });
+	return setting;
 }
 
 /** Every folder in the vault except the root, sorted by path. */
