@@ -1,7 +1,7 @@
 {
 	"id": "domain-first-file-allocator",
 	"name": "Domain First File Allocator",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"minAppVersion": "1.5.0",
 	"description": "File notes into folders using a domain property, and set the property from a note's folder.",
 	"author": "jrayas",

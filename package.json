@@ -1,6 +1,6 @@
 {
   "name": "domain-first-file-allocator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Files notes into folders according to a domain property in their frontmatter.",
   "main": "main.js",
   "type": "module",
