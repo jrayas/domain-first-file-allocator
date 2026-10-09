@@ -274,6 +274,56 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] Cancelling the reset changes nothing.
 - [ ] **Sync now**, **Export** and **Import** behave as in the JSON sync section.
 
+## Before submitting to the community list
+
+Do these in a clean test vault, after the feature checklists above. Copy `main.js`, `manifest.json` and `styles.css` into `.obsidian/plugins/domain-first-file-allocator/` and enable the plugin.
+
+### Install and lifecycle
+- [ ] A fresh install enables with no error in the developer console (see the console checks below).
+- [ ] Open Settings, Community plugins: the plugin shows its name, version, author and description from the manifest.
+- [ ] Disable, then enable, the plugin five times in a row: no console errors, and no duplicate commands, ribbon icons, settings tabs or notices.
+- [ ] After disabling: the ribbon icon is gone, the commands are gone from the palette, the file-menu items are gone, and moving or renaming notes does nothing.
+- [ ] Reload Obsidian without restarting (Ctrl/Cmd+R): the plugin loads again with the same settings.
+- [ ] Disable the plugin while a dialogue is open, and during automatic filing: no errors, and no later moves.
+- [ ] Delete the plugin's `data.json` while it is disabled, then enable it: it starts with the defaults and does not crash.
+- [ ] Put an unknown field and a bad value into `data.json`: it starts with the defaults for those fields.
+- [ ] Upgrade from the 0.1.0 files (copy the old files first, use it, then replace them with the new ones): the saved settings are kept, and `folder.json` from 0.1.0 still loads.
+
+### Appearance
+- [ ] The settings screen, dialogues and ribbon icon look right in the default light theme and the default dark theme.
+- [ ] The same in at least one popular community theme (for example Minimal, Things or AnuPpuccin).
+- [ ] Nothing uses a fixed colour that disappears in a theme: warning icons, the highlighted ribbon icon, the preview lists and the tab list are all readable.
+- [ ] Change the interface font size: text and buttons still fit.
+
+### Larger vaults
+- [ ] In a vault of several thousand notes, Obsidian starts as quickly with the plugin as without it (compare the startup time with the plugin disabled).
+- [ ] Renaming a domain folder that contains hundreds of notes shows the preview, applies it, and keeps the interface responsive.
+- [ ] The Domains tab opens quickly with many domains and shows note counts.
+- [ ] Typing in a note in a large vault is not slowed by the plugin.
+- [ ] Open the developer console Performance tab, record while filing a few notes, and check there are no long tasks from the plugin.
+
+### Notes with awkward content
+- [ ] Empty vault, empty note, a note with only a frontmatter block, and a note with invalid YAML (the plugin reports an error and does not change the note).
+- [ ] A very large note (several megabytes) is filed without freezing.
+- [ ] Folder names with accents, spaces, emoji and non-Latin scripts, and an accented name typed in a different Unicode form from the folder (for example copied from a Mac).
+- [ ] Notes in nested folders, and a note renamed or deleted while a move is waiting for its delay.
+
+### Interaction with other plugins
+- [ ] A template plugin that fills in a `domain:` property (for example Templater or the core Templates plugin): the property is kept as the template wrote it, and the note is then filed by it.
+- [ ] A linter or formatter plugin that rewrites frontmatter (for example Linter): no repeated back-and-forth moves.
+- [ ] Obsidian Git or a sync plugin running while notes are filed: no conflicts or repeated re-filing.
+- [ ] Dataview, Folder notes or a similar plugin that reads frontmatter or folders: they keep working after notes are moved.
+
+### Developer console checks
+Open the console with Ctrl+Shift+I (Windows and Linux) or Cmd+Option+I (macOS).
+- [ ] On the Console tab, with "Errors" and "Warnings" shown, enabling the plugin prints nothing from this plugin.
+- [ ] Run each command, open every settings tab and every dialogue, and file a note: still no errors or warnings.
+- [ ] Run `app.plugins.plugins["domain-first-file-allocator"]` and check it is an object while enabled and `undefined` after disabling.
+- [ ] Run `app.plugins.disablePlugin("domain-first-file-allocator")` then `app.plugins.enablePlugin("domain-first-file-allocator")` a few times: no errors.
+- [ ] On the Sources or Memory tab, take a heap snapshot, disable and re-enable the plugin several times, take another, and check the plugin's objects do not pile up.
+- [ ] Run `app.emulateMobile(true)`, repeat the settings and dialogue checks, then run `app.emulateMobile(false)`.
+- [ ] Look for failed network requests in the Network tab: there should be none from this plugin.
+
 ## JSON sync
 
 - [ ] Change a setting: `folder.json` updates (check `updatedAt` and the content).
