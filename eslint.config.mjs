@@ -1,12 +1,20 @@
-import js from "@eslint/js";
+import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
+import obsidianmd from "eslint-plugin-obsidianmd";
 
-export default tseslint.config(
-	{ ignores: ["main.js", "node_modules/**", "esbuild.config.mjs", "eslint.config.mjs"] },
-	js.configs.recommended,
-	...tseslint.configs.recommended,
+// Source files get Obsidian's own recommended rules, the ones plugin reviewers apply, with the
+// project's two extra rules: no Node or Electron imports, and no Obsidian imports in src/core.
+export default defineConfig([
+	{ ignores: ["main.js", "node_modules/**", "esbuild.config.mjs", "eslint.config.mjs", "vitest.config.ts"] },
 	{
 		files: ["src/**/*.ts"],
+		extends: [...obsidianmd.configs.recommended],
+		languageOptions: {
+			parserOptions: {
+				projectService: { allowDefaultProject: ["eslint.config.*"] },
+				tsconfigRootDir: import.meta.dirname,
+			},
+		},
 		rules: {
 			"@typescript-eslint/no-explicit-any": "error",
 			"no-restricted-imports": [
@@ -18,7 +26,14 @@ export default tseslint.config(
 	{
 		files: ["src/core/**/*.ts"],
 		rules: {
-			"no-restricted-imports": ["error", { paths: ["obsidian"] }],
+			"no-restricted-imports": [
+				"error",
+				{ paths: ["obsidian", "fs", "path", "os", "electron", "child_process", "node:fs", "node:path"] },
+			],
 		},
 	},
-);
+	{
+		files: ["tests/**/*.ts"],
+		extends: [tseslint.configs.recommended],
+	},
+]);
