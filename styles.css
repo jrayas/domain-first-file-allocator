@@ -227,3 +227,10 @@
 		display: block;
 	}
 }
+
+.dffa-slider-value {
+	min-width: 6.5em;
+	margin-left: 8px;
+	text-align: right;
+	color: var(--text-muted);
+}

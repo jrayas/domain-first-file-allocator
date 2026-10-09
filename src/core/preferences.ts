@@ -12,7 +12,9 @@ import {
 	type UnknownDomainAction,
 } from "../types";
 
-export const MIN_AUTO_DELAY_SECONDS = 1;
+/** The shortest automatic-filing delay: 500 ms. Longer delays are whole seconds up to the maximum. */
+export const SHORT_DELAY_SECONDS = 0.5;
+export const MIN_AUTO_DELAY_SECONDS = SHORT_DELAY_SECONDS;
 export const MAX_AUTO_DELAY_SECONDS = 60;
 export const MIN_PREVIEW_THRESHOLD = 1;
 export const MAX_PREVIEW_THRESHOLD = 50;
@@ -96,22 +98,64 @@ export function createDefaultAutomatic(): AutomaticSettings {
 	// On by default, and the open note is not held back, so typing a domain into a
 	// note files it a couple of seconds later. Only registered, enabled domains
 	// are ever acted on, so this is safe before any domain has been set up.
+	// Notes with no domain fall to the fallback folder too, so a new note or an
+	// empty domain property does not sit unfiled. Only new notes, and notes that
+	// have the property present but empty, are checked: a note with no domain
+	// property at all is never moved just because it was opened.
 	return {
 		enabled: true,
 		delaySeconds: 2,
-		includeNoDomain: false,
+		includeNoDomain: true,
 		onlyInFallback: false,
 		skipOpenNote: false,
 		quiet: false,
 	};
 }
 
-/** Keeps the delay a whole number of seconds within the allowed range. */
+/**
+ * Keeps the delay valid: 0.5 seconds (500 ms) or a whole number of seconds from
+ * 1 to 60. Anything shorter than a second becomes 500 ms.
+ */
 export function clampDelay(value: number): number {
 	if (!Number.isFinite(value)) {
 		return createDefaultAutomatic().delaySeconds;
 	}
-	return Math.min(MAX_AUTO_DELAY_SECONDS, Math.max(MIN_AUTO_DELAY_SECONDS, Math.round(value)));
+	if (value < 1) {
+		return SHORT_DELAY_SECONDS;
+	}
+	return Math.min(MAX_AUTO_DELAY_SECONDS, Math.round(value));
+}
+
+/** The settings slider runs 0 to 60: its first stop is the 500 ms delay, the rest are whole seconds. */
+export function delayToSlider(seconds: number): number {
+	return seconds < 1 ? 0 : Math.round(seconds);
+}
+
+export function sliderToDelay(position: number): number {
+	return position < 1 ? SHORT_DELAY_SECONDS : Math.round(position);
+}
+
+/** A delay in words: "500 ms", "1 second", "10 seconds". */
+export function formatDelay(seconds: number): string {
+	if (seconds < 1) {
+		return `${Math.round(seconds * 1000)} ms`;
+	}
+	return seconds === 1 ? "1 second" : `${seconds} seconds`;
+}
+
+function pickDelay(source: Source, fallback: number, errors: string[]): number {
+	const raw = source.delaySeconds;
+	if (raw === undefined) {
+		return fallback;
+	}
+	if (typeof raw !== "number" || !Number.isFinite(raw)) {
+		errors.push(`"delaySeconds" must be a number from ${MIN_AUTO_DELAY_SECONDS} to ${MAX_AUTO_DELAY_SECONDS}.`);
+		return fallback;
+	}
+	if (raw < MIN_AUTO_DELAY_SECONDS || raw > MAX_AUTO_DELAY_SECONDS) {
+		errors.push(`"delaySeconds" must be a number from ${MIN_AUTO_DELAY_SECONDS} to ${MAX_AUTO_DELAY_SECONDS}.`);
+	}
+	return clampDelay(raw);
 }
 
 export function parseAutomatic(raw: unknown): Parsed<AutomaticSettings> {
@@ -126,14 +170,7 @@ export function parseAutomatic(raw: unknown): Parsed<AutomaticSettings> {
 	const scoped: string[] = [];
 	const value: AutomaticSettings = {
 		enabled: pickBoolean(raw, "enabled", defaults.enabled, scoped),
-		delaySeconds: pickNumber(
-			raw,
-			"delaySeconds",
-			MIN_AUTO_DELAY_SECONDS,
-			MAX_AUTO_DELAY_SECONDS,
-			defaults.delaySeconds,
-			scoped,
-		),
+		delaySeconds: pickDelay(raw, defaults.delaySeconds, scoped),
 		includeNoDomain: pickBoolean(raw, "includeNoDomain", defaults.includeNoDomain, scoped),
 		onlyInFallback: pickBoolean(raw, "onlyInFallback", defaults.onlyInFallback, scoped),
 		skipOpenNote: pickBoolean(raw, "skipOpenNote", defaults.skipOpenNote, scoped),
@@ -198,7 +235,7 @@ export function readPrompts(raw: unknown): PromptSettings {
 /** The single-value preferences that sit directly in the top level of the settings. */
 export type GeneralPreferences = Pick<
 	SyncedConfig,
-	"notices" | "optOutProperty" | "writeCanonicalCasing" | "conflictPolicy" | "undoDepth"
+	"notices" | "optOutProperty" | "writeCanonicalCasing" | "addPropertyToNewNotes" | "conflictPolicy" | "undoDepth"
 >;
 
 export function createDefaultGeneral(): GeneralPreferences {
@@ -206,6 +243,7 @@ export function createDefaultGeneral(): GeneralPreferences {
 		notices: "all",
 		optOutProperty: OPT_OUT_PROPERTY,
 		writeCanonicalCasing: true,
+		addPropertyToNewNotes: false,
 		conflictPolicy: "newest",
 		undoDepth: 1,
 	};
@@ -239,6 +277,7 @@ export function parseGeneral(source: Source): Parsed<GeneralPreferences> {
 			notices: pickEnum(source, "notices", NOTICE_LEVELS, defaults.notices, errors),
 			optOutProperty,
 			writeCanonicalCasing: pickBoolean(source, "writeCanonicalCasing", defaults.writeCanonicalCasing, errors),
+			addPropertyToNewNotes: pickBoolean(source, "addPropertyToNewNotes", defaults.addPropertyToNewNotes, errors),
 			conflictPolicy: pickEnum(source, "conflictPolicy", CONFLICT_POLICIES, defaults.conflictPolicy, errors),
 			undoDepth,
 		},

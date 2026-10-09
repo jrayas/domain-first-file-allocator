@@ -1,4 +1,6 @@
 import { TFile, type App, type Plugin, type TAbstractFile } from "obsidian";
+import { readDomainValue } from "../core/domainValue";
+import { NEW_NOTE_SETTLE_MS, hasProperty } from "../core/newNote";
 import type { AllocatorSettings } from "../types";
 import type { Allocator } from "./allocator";
 import { readFrontmatter } from "./frontmatter";
@@ -43,6 +45,7 @@ export class AutoFiler {
 		plugin.registerEvent(this.app.vault.on("delete", (file) => this.lastSeen.delete(file.path)));
 		plugin.registerEvent(this.app.vault.on("create", (file) => this.onCreate(file)));
 		plugin.registerEvent(this.app.workspace.on("active-leaf-change", () => this.releaseClosedNotes()));
+		plugin.registerEvent(this.app.workspace.on("file-open", (file) => this.onOpen(file)));
 		this.app.workspace.onLayoutReady(() => {
 			this.rebuildBaseline();
 			this.ready = true;
@@ -123,6 +126,29 @@ export class AutoFiler {
 		}
 		const { automatic } = this.host.getSettings();
 		if (automatic.enabled && automatic.includeNoDomain) {
+			// Wait for a template to fill the note in before judging whether it has a domain.
+			this.schedule(file, 0, NEW_NOTE_SETTLE_MS + 250);
+		}
+	}
+
+	/**
+	 * A note you open that has the domain property present but empty is checked too,
+	 * so an unfilled domain falls to the fallback. A note with no domain property at
+	 * all is not touched on opening, or every plain note would be moved when read.
+	 */
+	private onOpen(file: TFile | null): void {
+		if (!this.ready || file === null || file.extension !== "md") {
+			return;
+		}
+		const settings = this.host.getSettings();
+		if (!settings.automatic.enabled || !settings.automatic.includeNoDomain) {
+			return;
+		}
+		const frontmatter = readFrontmatter(this.app, file);
+		if (!hasProperty(frontmatter, settings.propertyName)) {
+			return;
+		}
+		if (readDomainValue(frontmatter?.[settings.propertyName]).kind === "missing") {
 			this.schedule(file);
 		}
 	}
@@ -135,7 +161,7 @@ export class AutoFiler {
 		}
 	}
 
-	private schedule(file: TFile, attempt = 0): void {
+	private schedule(file: TFile, attempt = 0, minDelayMs = 0): void {
 		if (this.disposed) {
 			return;
 		}
@@ -143,7 +169,7 @@ export class AutoFiler {
 		if (existing !== undefined) {
 			window.clearTimeout(existing);
 		}
-		const delayMs = this.host.getSettings().automatic.delaySeconds * 1000;
+		const delayMs = Math.max(this.host.getSettings().automatic.delaySeconds * 1000, minDelayMs);
 		this.timers.set(
 			file,
 			window.setTimeout(() => {

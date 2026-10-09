@@ -71,6 +71,17 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 		},
 	);
 
+	addToggle(
+		el,
+		"Add the domain property to new notes",
+		"When you create a note, add an empty domain property so it is ready to fill in. If a template has already put the property in the note, it is left exactly as the template made it. Needs a moment after creation so templates can run first.",
+		settings.addPropertyToNewNotes,
+		(value) => {
+			settings.addPropertyToNewNotes = value;
+			ctx.commit();
+		},
+	);
+
 	addHeading(el, "Fallback folder");
 	addToggle(
 		el,

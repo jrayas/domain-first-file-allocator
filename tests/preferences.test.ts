@@ -48,11 +48,16 @@ describe("parseAutomatic", () => {
 		expect(value.enabled).toBe(true);
 		expect(value.skipOpenNote).toBe(false);
 	});
-	it("leaves the riskier options off by default", () => {
+	it("sends notes with no domain to the fallback by default", () => {
+		expect(parseAutomatic({}).value.includeNoDomain).toBe(true);
+	});
+	it("leaves the narrowing and quiet options off by default", () => {
 		const { value } = parseAutomatic({});
-		expect(value.includeNoDomain).toBe(false);
 		expect(value.onlyInFallback).toBe(false);
 		expect(value.quiet).toBe(false);
+	});
+	it("keeps an explicit choice to leave notes with no domain alone", () => {
+		expect(parseAutomatic({ includeNoDomain: false }).value.includeNoDomain).toBe(false);
 	});
 	it("keeps an explicit choice to turn it off", () => {
 		expect(parseAutomatic({ enabled: false }).value.enabled).toBe(false);
@@ -79,6 +84,7 @@ describe("parseGeneral", () => {
 			notices: "errors",
 			optOutProperty: "  keep-out ",
 			writeCanonicalCasing: false,
+			addPropertyToNewNotes: true,
 			conflictPolicy: "ask",
 			undoDepth: 10,
 		});
@@ -87,6 +93,7 @@ describe("parseGeneral", () => {
 			notices: "errors",
 			optOutProperty: "keep-out",
 			writeCanonicalCasing: false,
+			addPropertyToNewNotes: true,
 			conflictPolicy: "ask",
 			undoDepth: 10,
 		});
@@ -95,6 +102,7 @@ describe("parseGeneral", () => {
 		["notices", { notices: "loud" }],
 		["optOutProperty", { optOutProperty: "  " }],
 		["writeCanonicalCasing", { writeCanonicalCasing: "yes" }],
+		["addPropertyToNewNotes", { addPropertyToNewNotes: "yes" }],
 		["conflictPolicy", { conflictPolicy: "random" }],
 		["undoDepth", { undoDepth: 3 }],
 		["undoDepth type", { undoDepth: "5" }],

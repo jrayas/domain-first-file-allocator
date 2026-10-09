@@ -153,8 +153,21 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] Notes in an excluded folder, or with `skip-allocator: true`, are never moved.
 - [ ] **Undo last allocation** reverses an automatic move.
 - [ ] Changing the delay to 10 seconds takes effect (sync from `folder.json` too).
+- [ ] The delay slider's first stop reads **500 ms**; the next stops read 1 second, 2 seconds and so on up to 60 seconds. The label beside the slider always shows the real time.
+- [ ] At 500 ms a note files about half a second after the domain property last changed.
+- [ ] At 500 ms, typing a domain that starts with a shorter registered domain (for example `Areas` while typing `Areas/Finance`) can file the note early; a longer delay avoids it.
+- [ ] Setting `"delaySeconds": 0.5` in `folder.json` and pressing **Sync now** shows 500 ms. `0.2` makes the file unusable, and it is left untouched.
 - [ ] Turning automatic filing off while a note is waiting cancels the pending move.
-- [ ] Create a new note with no domain: with **Also file notes with no domain** off, nothing happens. Turn it on, create another, and after the delay it goes to the fallback folder.
+- [ ] Create a new note with no domain, anywhere in the vault, with **Also file notes with no domain** on (the default): after the delay plus about a second, it goes to the fallback folder, and the editor stays on it.
+- [ ] Turn **Also file notes with no domain** off and create another new note: nothing happens.
+- [ ] Add `domain:` (empty) to an existing note outside the fallback, then open another note and open that one again: it falls to the fallback folder.
+- [ ] Open an existing note that has **no** domain property at all: it is **not** moved.
+- [ ] Open a note that is already in the fallback with an empty domain: nothing happens, and no repeated notices.
+- [ ] Clear the domain from a note that had one: it falls to the fallback after the delay.
+- [ ] Turn the fallback off and clear a note's domain: one notice says the fallback is off, and the note stays.
+- [ ] Turn **Also file notes with no domain** off, clear a note's domain: one notice says that option is off.
+- [ ] A note in an excluded folder, or with the opt-out property, with an empty domain is never moved.
+- [ ] With **Only file notes in the fallback folder** on, an empty-domain note outside the fallback is not moved.
 - [ ] Remove the `domain` property from a note with that option on: the note goes to the fallback.
 - [ ] Restart Obsidian with it on: existing notes are not refiled at startup.
 - [ ] Change the property name in settings: no notes move because of the change.
@@ -179,6 +192,14 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] With **Write the folder's casing** off, filing a note with `domain: areas/finance` leaves the text as it is. With it on, the text becomes `Areas/Finance`.
 - [ ] A list with several values is still rewritten to the single chosen value with the option off.
 - [ ] **Use fallback folder** off: notes with no domain stay put.
+- [ ] **Add the domain property to new notes** is off by default.
+- [ ] With it on, create a new empty note: after about a second and a half it gains an empty domain property (`domain: ""`), with the editor still on the note.
+- [ ] With it on, create a note from a template that already has `domain:` (empty or filled, or `Domain:`): the property is left exactly as the template wrote it, and the file is not rewritten.
+- [ ] With it on, create a note from a template that does not have the property: the property is added alongside the template's own.
+- [ ] With it on, a note created in an excluded folder, or a template with the opt-out property, gets nothing added.
+- [ ] Restart Obsidian with it on: existing notes are not changed, and only notes created afterwards are.
+- [ ] With it on together with automatic filing, a new note gets its empty property and falls to the fallback folder; typing a domain then moves it.
+- [ ] Changing the property name to `area` adds `area` to new notes from then on.
 - [ ] Setting the fallback to an excluded folder shows the note in its description.
 - [ ] Excluded folders can be added by typing (including a hidden folder) or by picker, and removed.
 - [ ] **Notice level**: *All notices* shows everything. *Important only* hides routine confirmations such as "Moved note". *Errors only* shows only errors.

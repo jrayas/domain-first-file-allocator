@@ -175,6 +175,10 @@ export class Allocator {
 			message = `the domain "${value}" is set to Manual only.`;
 		} else if (reason === "ambiguous") {
 			message = "it has several domains. Run File note by domain to choose one.";
+		} else if (reason === "no-domain") {
+			message = this.settings.fallback.enabled
+				? 'it has no domain, and "Also file notes with no domain" is off.'
+				: "it has no domain, and the fallback folder is turned off.";
 		}
 		if (message === null) {
 			return;

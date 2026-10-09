@@ -44,6 +44,7 @@ function comparable(config: SyncedConfig): unknown {
 		notices: config.notices,
 		optOutProperty: config.optOutProperty,
 		writeCanonicalCasing: config.writeCanonicalCasing,
+		addPropertyToNewNotes: config.addPropertyToNewNotes,
 		conflictPolicy: config.conflictPolicy,
 		undoDepth: config.undoDepth,
 		domains: config.domains.map((entry) => ({
@@ -119,6 +120,7 @@ export function summariseChanges(current: SyncedConfig, incoming: SyncedConfig):
 	changed("Notices", current.notices, incoming.notices, lines);
 	changed("Opt-out property", `"${current.optOutProperty}"`, `"${incoming.optOutProperty}"`, lines);
 	toggled("Writing the folder's casing to the property", current.writeCanonicalCasing, incoming.writeCanonicalCasing, lines);
+	toggled("Adding the domain property to new notes", current.addPropertyToNewNotes, incoming.addPropertyToNewNotes, lines);
 	changed("Sync conflict policy", current.conflictPolicy, incoming.conflictPolicy, lines);
 	changed("Undo depth", current.undoDepth, incoming.undoDepth, lines);
 

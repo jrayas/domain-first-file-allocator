@@ -1,6 +1,6 @@
 import { Setting, debounce } from "obsidian";
-import { MAX_AUTO_DELAY_SECONDS, MIN_AUTO_DELAY_SECONDS, clampDelay } from "../core/preferences";
-import { addHeading, addNote, addSlider, addToggle, type TabContext } from "./helpers";
+import { MAX_AUTO_DELAY_SECONDS, delayToSlider, formatDelay, sliderToDelay } from "../core/preferences";
+import { addHeading, addNote, addToggle, type TabContext } from "./helpers";
 
 export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 	const { plugin } = ctx;
@@ -28,17 +28,27 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 	);
 
 	const saveDelay = debounce(() => ctx.commit(), 700, true);
-	addSlider(
-		el,
-		"Delay",
-		"Seconds to wait after the domain property last changed, so a half-typed value is not acted on.",
-		{ min: MIN_AUTO_DELAY_SECONDS, max: MAX_AUTO_DELAY_SECONDS },
-		automatic.delaySeconds,
-		(value) => {
-			automatic.delaySeconds = clampDelay(value);
-			saveDelay();
-		},
-	);
+	// The first stop is 500 ms, then 1 to 60 whole seconds. The slider's own tooltip would show
+	// the position, not the time, so the real value is written beside it.
+	const delaySetting = new Setting(el)
+		.setName("Delay")
+		.setDesc(
+			"How long to wait after the domain property last changed, so a half-typed value is not acted on. The first stop is 500 ms. A very short delay can file a note while you are still typing a longer domain that starts with a shorter one.",
+		)
+		.addSlider((slider) =>
+			slider
+				.setLimits(0, MAX_AUTO_DELAY_SECONDS, 1)
+				.setValue(delayToSlider(automatic.delaySeconds))
+				.onChange((position) => {
+					automatic.delaySeconds = sliderToDelay(position);
+					delayLabel.setText(formatDelay(automatic.delaySeconds));
+					saveDelay();
+				}),
+		);
+	const delayLabel = delaySetting.controlEl.createSpan({
+		cls: "dffa-slider-value",
+		text: formatDelay(automatic.delaySeconds),
+	});
 
 	addHeading(el, "Safety");
 	addToggle(
@@ -64,7 +74,7 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 	addToggle(
 		el,
 		"Also file notes with no domain",
-		"Send new notes, and notes whose domain was removed, to the fallback folder. Off by default because it moves every unfiled note. Has no effect together with the option above.",
+		"Send a new note, a note whose domain was removed, and a note you open whose domain property is present but empty, to the fallback folder. A note with no domain property at all is only moved when it is newly created. Turn this off if you create notes in folders where they should stay. Has no effect together with the option above.",
 		automatic.includeNoDomain,
 		(value) => {
 			automatic.includeNoDomain = value;

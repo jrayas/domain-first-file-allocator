@@ -42,7 +42,7 @@ export interface FallbackSettings {
 export interface AutomaticSettings {
 	/** File notes by domain automatically when their domain property changes. */
 	enabled: boolean;
-	/** Seconds the note must sit unchanged before it is filed. */
+	/** Seconds the note must sit unchanged before it is filed: 0.5 (500 ms), or a whole number from 1 to 60. */
 	delaySeconds: number;
 	/** Also send new or domainless notes to the fallback folder. */
 	includeNoDomain: boolean;
@@ -68,6 +68,8 @@ export interface SyncedConfig {
 	optOutProperty: string;
 	/** Rewrite a note's domain to the folder's real casing when filing. */
 	writeCanonicalCasing: boolean;
+	/** Add an empty domain property to each new note, unless a template already supplied one. */
+	addPropertyToNewNotes: boolean;
 	conflictPolicy: ConflictPolicy;
 	undoDepth: UndoDepth;
 	domains: DomainEntry[];

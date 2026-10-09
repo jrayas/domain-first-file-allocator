@@ -92,6 +92,7 @@ export function settingsFromConfig(config: SyncedConfig, dataFolderName: string)
 		notices: config.notices,
 		optOutProperty: config.optOutProperty,
 		writeCanonicalCasing: config.writeCanonicalCasing,
+		addPropertyToNewNotes: config.addPropertyToNewNotes,
 		conflictPolicy: config.conflictPolicy,
 		undoDepth: config.undoDepth,
 		domains: config.domains.map((entry) => ({ ...entry })),

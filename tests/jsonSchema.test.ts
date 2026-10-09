@@ -53,7 +53,7 @@ describe("parseConfigJson", () => {
 		["folderMovePrompt", { folderMovePrompt: "sometimes" }],
 		["automatic type", { automatic: "on" }],
 		["automatic enabled", { automatic: { ...createDefaultAutomatic(), enabled: 1, delaySeconds: 2, includeNoDomain: false } }],
-		["automatic delay too small", { automatic: { ...createDefaultAutomatic(), enabled: true, delaySeconds: 0, includeNoDomain: false } }],
+		["automatic delay too small", { automatic: { ...createDefaultAutomatic(), enabled: true, delaySeconds: 0.2, includeNoDomain: false } }],
 		["automatic delay too large", { automatic: { ...createDefaultAutomatic(), enabled: true, delaySeconds: 61, includeNoDomain: false } }],
 		["automatic includeNoDomain", { automatic: { enabled: true, includeNoDomain: "yes" } }],
 		["domains", { domains: {} }],
@@ -150,7 +150,7 @@ describe("sanitiseSettings", () => {
 
 describe("automatic settings helpers", () => {
 	it("clamps and rounds the delay", () => {
-		expect(clampDelay(0)).toBe(1);
+		expect(clampDelay(0)).toBe(0.5);
 		expect(clampDelay(500)).toBe(60);
 		expect(clampDelay(2.4)).toBe(2);
 		expect(clampDelay(Number.NaN)).toBe(2);

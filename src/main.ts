@@ -7,6 +7,7 @@ import { BatchRunner } from "./services/batch";
 import { FolderEvents } from "./services/folderEvents";
 import { JsonSync } from "./services/jsonSync";
 import { MovingGuard } from "./services/movingGuard";
+import { NewNoteProperty } from "./services/newNotes";
 import { Notifier } from "./services/notify";
 import { UndoService } from "./services/undo";
 import { VaultOps } from "./services/vaultOps";
@@ -25,6 +26,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	undoService!: UndoService;
 	folderEvents!: FolderEvents;
 	autoFiler!: AutoFiler;
+	newNotes!: NewNoteProperty;
 	ops!: VaultOps;
 	readonly guard = new MovingGuard();
 	readonly notifier = new Notifier(() => this.settings.notices);
@@ -59,6 +61,8 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		this.folderEvents.register(this);
 		this.autoFiler = new AutoFiler({ ...host, isSnoozed: () => this.isSnoozed() }, this.allocator);
 		this.autoFiler.register(this);
+		this.newNotes = new NewNoteProperty(host, this.allocator);
+		this.newNotes.register(this);
 
 		this.addSettingTab(new AllocatorSettingTab(this.app, this));
 		this.registerCommands();

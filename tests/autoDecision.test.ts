@@ -50,14 +50,28 @@ describe("decideAutoFile", () => {
 	});
 
 	describe("notes with no domain", () => {
-		it("are left alone by default", () => {
-			expect(decideAutoFile(context({}, null))).toEqual({ action: "skip", reason: "no-domain" });
-		});
-		it("go to the fallback when included", () => {
-			const automatic = { ...createDefaultAutomatic(), enabled: true, includeNoDomain: true };
-			expect(decideAutoFile(context({ automatic, currentFolder: "Projects" }, null))).toEqual({
+		it("go to the fallback by default", () => {
+			expect(decideAutoFile(context({ currentFolder: "Projects" }, null))).toEqual({
 				action: "file",
 				targetFolder: "Inbox",
+			});
+		});
+		it("treat an empty property the same as a missing one", () => {
+			for (const raw of ["", "   ", [], [""]]) {
+				expect(decideAutoFile(context({ currentFolder: "Projects" }, raw))).toMatchObject({
+					action: "file",
+					targetFolder: "Inbox",
+				});
+			}
+		});
+		it("do not move when they are already in the fallback", () => {
+			expect(decideAutoFile(context({}, null))).toEqual({ action: "skip", reason: "already-there" });
+		});
+		it("are left alone when the option is off", () => {
+			const automatic = { ...createDefaultAutomatic(), enabled: true, includeNoDomain: false };
+			expect(decideAutoFile(context({ automatic, currentFolder: "Projects" }, null))).toEqual({
+				action: "skip",
+				reason: "no-domain",
 			});
 		});
 		it("stay put when the fallback is off", () => {
