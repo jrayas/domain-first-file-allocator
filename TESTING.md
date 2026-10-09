@@ -250,6 +250,8 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 ### Automatic filing tab
 
 - [ ] The toggle and the ribbon icon stay in step.
+- [ ] The Automatic filing tab is short and scannable: each setting has one sentence of text, in groups headed Automatic filing, What to file, While you work and Snooze.
+- [ ] The delay slider sits on its own line below its text, spans the width, and the text above it keeps its full width, at wide and narrow window sizes.
 - [ ] The delay slider changes how long a note waits (try 1 and 10 seconds).
 - [ ] **Never move the open note**: with it on, a note open in the editor is not moved until you switch to another note; then it is filed. With it off, it is filed straight away.
 - [ ] **Only file notes in the fallback folder**: a note elsewhere is never moved automatically; a note in the fallback folder is.
@@ -317,6 +319,8 @@ Copy the plugin folder into the vault on the device, or sync it, and enable it.
 - [ ] Settings toggles, dropdown and trash buttons are easy to tap.
 - [ ] The settings categories appear as a dropdown at the top, and choosing one switches the tab.
 - [ ] The domain mode dropdowns, the search box and the sliders are usable with a finger.
+- [ ] On a phone, dropdown settings (for example on the Prompts tab) put the dropdown on its own full-width line below the text.
+- [ ] Desktop check of the phone layout: run `app.emulateMobile(true)` in the developer console and repeat the settings checks, then `app.emulateMobile(false)`.
 - [ ] The bulk-add dialogue and its list scroll and fit the screen.
 - [ ] The automatic filing icon is in the ribbon menu, toggles the mode, and shows its state.
 - [ ] Snooze can be started and ended from the Automatic filing tab, since right-click may not exist.

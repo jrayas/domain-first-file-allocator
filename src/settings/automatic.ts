@@ -2,20 +2,21 @@ import { Setting, debounce } from "obsidian";
 import { MAX_AUTO_DELAY_SECONDS, delayToSlider, formatDelay, sliderToDelay } from "../core/preferences";
 import { addHeading, addNote, addToggle, type TabContext } from "./helpers";
 
+/**
+ * Descriptions here are kept to a sentence. The full explanation lives in the
+ * README, so the screen stays easy to scan, especially on a phone.
+ */
 export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 	const { plugin } = ctx;
 	const automatic = plugin.settings.automatic;
 
 	addHeading(el, "Automatic filing");
-	addNote(
-		el,
-		"Files a note shortly after you change its domain property. Only registered, enabled domains that allow automatic filing are acted on, and nothing is ever replaced. A name clash leaves the note in place. The lightning-bolt icon in the left ribbon switches this on and off; right-click it to snooze.",
-	);
+	addNote(el, "Files a note shortly after you change its domain. Only registered, enabled domains are used, and nothing is ever replaced.");
 
 	addToggle(
 		el,
 		"File notes automatically",
-		"Off by default. Moves are recorded, so Undo last allocation can reverse them.",
+		"Moves can be undone with Undo last allocation. The ribbon icon switches this on and off.",
 		automatic.enabled,
 		(value) => {
 			automatic.enabled = value;
@@ -27,14 +28,14 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 		},
 	);
 
-	const saveDelay = debounce(() => ctx.commit(), 700, true);
 	// The first stop is 500 ms, then 1 to 60 whole seconds. The slider's own tooltip would show
-	// the position, not the time, so the real value is written beside it.
+	// the position, not the time, so the real value is written beside it. The setting is stacked,
+	// with the slider on its own line below the text, so it has room and the text keeps its width.
+	const saveDelay = debounce(() => ctx.commit(), 700, true);
 	const delaySetting = new Setting(el)
 		.setName("Delay")
-		.setDesc(
-			"How long to wait after the domain property last changed, so a half-typed value is not acted on. The first stop is 500 ms. A very short delay can file a note while you are still typing a longer domain that starts with a shorter one.",
-		)
+		.setDesc("How long to wait after the last change. Very short delays can file a note while you are still typing.")
+		.setClass("dffa-stacked")
 		.addSlider((slider) =>
 			slider
 				.setLimits(0, MAX_AUTO_DELAY_SECONDS, 1)
@@ -50,31 +51,11 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 		text: formatDelay(automatic.delaySeconds),
 	});
 
-	addHeading(el, "Safety");
-	addToggle(
-		el,
-		"Never move the open note",
-		"A note that is open in the editor is left alone even after you type a domain, and filed once you switch to another note. A note with no domain always waits like this, whatever this setting says.",
-		automatic.skipOpenNote,
-		(value) => {
-			automatic.skipOpenNote = value;
-			ctx.commit();
-		},
-	);
-	addToggle(
-		el,
-		"Only file notes in the fallback folder",
-		"Automatic filing then acts only on notes that currently sit in the fallback folder, such as an inbox. Notes anywhere else are never moved automatically.",
-		automatic.onlyInFallback,
-		(value) => {
-			automatic.onlyInFallback = value;
-			ctx.commit();
-		},
-	);
+	addHeading(el, "What to file");
 	addToggle(
 		el,
 		"Also file notes with no domain",
-		"Send a new note, a note whose domain was removed, and a note you open whose domain property is present but empty, to the fallback folder. The note is moved once you switch away from it, never while you are in it. A note with no domain property at all is only moved when it is newly created. Turn this off if you create notes in folders where they should stay. Has no effect together with the option above.",
+		"Send them to the fallback folder once you switch away from the note.",
 		automatic.includeNoDomain,
 		(value) => {
 			automatic.includeNoDomain = value;
@@ -83,18 +64,31 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 	);
 	addToggle(
 		el,
-		"Quiet moves",
-		"No notice when a note is filed automatically. Skips and errors are still shown.",
-		automatic.quiet,
+		"Only file notes in the fallback folder",
+		"Never move notes from anywhere else.",
+		automatic.onlyInFallback,
 		(value) => {
-			automatic.quiet = value;
+			automatic.onlyInFallback = value;
 			ctx.commit();
 		},
 	);
-	addNote(
+	addNote(el, "To keep one domain out of automatic filing, set it to Manual only on the Domains tab.");
+
+	addHeading(el, "While you work");
+	addToggle(
 		el,
-		"Each domain can also be kept out of automatic filing: set it to Manual only on the Domains tab.",
+		"Never move the open note",
+		"Hold every move until you switch away. Notes with no domain always wait.",
+		automatic.skipOpenNote,
+		(value) => {
+			automatic.skipOpenNote = value;
+			ctx.commit();
+		},
 	);
+	addToggle(el, "Quiet moves", "No notice when a note is filed. Skips and errors still show.", automatic.quiet, (value) => {
+		automatic.quiet = value;
+		ctx.commit();
+	});
 
 	addHeading(el, "Snooze");
 	const minutesLeft = plugin.snoozeMinutesLeft();
@@ -104,8 +98,8 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 			!automatic.enabled
 				? "Automatic filing is off."
 				: minutesLeft > 0
-					? `Paused for about ${minutesLeft} more ${minutesLeft === 1 ? "minute" : "minutes"}. Changes made meanwhile are not filed afterwards.`
-					: "Pause for a while, then carry on. Changes made while paused are not filed afterwards.",
+					? `Paused for about ${minutesLeft} more ${minutesLeft === 1 ? "minute" : "minutes"}.`
+					: "Changes made while paused are not filed afterwards.",
 		);
 	if (automatic.enabled && minutesLeft === 0) {
 		snooze

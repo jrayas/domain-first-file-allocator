@@ -63,7 +63,7 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 	addToggle(
 		el,
 		"Write the folder's casing",
-		"When filing, rewrite a note's domain to match the folder's real capitalisation. Turn off to leave your own text alone when it names the same folder.",
+		"Rewrite a note's domain to the folder's real capitalisation when filing.",
 		settings.writeCanonicalCasing,
 		(value) => {
 			settings.writeCanonicalCasing = value;
@@ -74,7 +74,7 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 	addToggle(
 		el,
 		"Add the domain property to new notes",
-		"When you create a note, add an empty domain property so it is ready to fill in. If a template has already put the property in the note, it is left exactly as the template made it. Needs a moment after creation so templates can run first.",
+		"Adds an empty domain property to each new note. A property from a template is left as it is.",
 		settings.addPropertyToNewNotes,
 		(value) => {
 			settings.addPropertyToNewNotes = value;
@@ -124,7 +124,7 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"Notice level",
-		"How much the plugin tells you. Errors are always shown. Important notices cover skips and settings changes; the rest confirm routine actions.",
+		"Errors are always shown. Important notices cover skips and settings changes.",
 		NOTICE_CHOICES,
 		settings.notices,
 		(value) => {
@@ -136,7 +136,7 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 	addHeading(el, "Hotkeys");
 	addNote(
 		el,
-		"The plugin sets no hotkeys of its own. To add one, open Settings, then Hotkeys, and search for Domain First File Allocator.",
+		"The plugin sets no hotkeys. Add your own in Settings, then Hotkeys.",
 	);
 }
 

@@ -234,3 +234,79 @@
 	text-align: right;
 	color: var(--text-muted);
 }
+
+/* A setting whose control needs room, such as a slider: the control sits on its own line below the text. */
+.dffa-stacked.setting-item {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+}
+
+.dffa-stacked .setting-item-info {
+	width: 100%;
+	margin-right: 0;
+}
+
+.dffa-stacked .setting-item-control {
+	width: 100%;
+	justify-content: flex-start;
+	flex-wrap: nowrap;
+	gap: 12px;
+}
+
+.dffa-stacked .setting-item-control input[type="range"] {
+	flex: 1 1 auto;
+	width: auto;
+	min-width: 0;
+	min-height: 32px;
+}
+
+.dffa-stacked .dffa-slider-value {
+	flex: 0 0 auto;
+	margin-left: 0;
+}
+
+/* On a narrow screen a dropdown also gets its own line, so the text above it is not squeezed. */
+.is-mobile .dffa-choice.setting-item {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+}
+
+.is-mobile .dffa-choice .setting-item-info {
+	width: 100%;
+	margin-right: 0;
+}
+
+.is-mobile .dffa-choice .setting-item-control {
+	width: 100%;
+	justify-content: flex-start;
+}
+
+.is-mobile .dffa-choice .setting-item-control select {
+	width: 100%;
+	max-width: none;
+}
+
+@media (max-width: 700px) {
+	.dffa-choice.setting-item {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
+	}
+
+	.dffa-choice .setting-item-info {
+		width: 100%;
+		margin-right: 0;
+	}
+
+	.dffa-choice .setting-item-control {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.dffa-choice .setting-item-control select {
+		width: 100%;
+		max-width: none;
+	}
+}

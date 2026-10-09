@@ -45,6 +45,7 @@ export function addChoice<T extends string>(
 	return new Setting(el)
 		.setName(name)
 		.setDesc(desc)
+		.setClass("dffa-choice")
 		.addDropdown((dropdown) => {
 			for (const [optionValue, label] of choices) {
 				dropdown.addOption(optionValue, label);
@@ -65,6 +66,7 @@ export function addSlider(
 	return new Setting(el)
 		.setName(name)
 		.setDesc(desc)
+		.setClass("dffa-stacked")
 		.addSlider((slider) =>
 			slider.setLimits(limits.min, limits.max, 1).setValue(value).setDynamicTooltip().onChange(onChange),
 		);

@@ -79,6 +79,17 @@ The plugin also watches for folder changes:
    Excluded folders     ──  never touched, including their subfolders
 ```
 
+## Mobile
+
+The plugin is not desktop-only. It uses only the Obsidian API (no Node or Electron code), so it loads on iOS and Android. Things to know on a phone or tablet:
+
+- The settings categories become a dropdown at the top, and sliders and dropdowns sit on their own line below their text.
+- The lightning-bolt icon is in the ribbon menu. There is no right-click, so start and stop **Snooze** from the Automatic filing tab.
+- Hidden folders such as `.domain` may not sync between devices (Obsidian Sync skips them by default). Use a data folder name that is not hidden if you want the same settings everywhere, or set the plugin up on each device.
+- Import uses the device's own file picker. Export writes a dated file beside the data file.
+
+It has been built for mobile but checked only against the desktop app so far. To try the phone layout on a computer, open the developer console (Ctrl+Shift+I, or Cmd+Option+I on a Mac) and run `app.emulateMobile(true)`; run `app.emulateMobile(false)` to go back. Real-device results are welcome: the mobile checklist is in `TESTING.md`.
+
 ## Install
 
 Manual install:
