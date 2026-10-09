@@ -117,3 +117,34 @@ describe("decideAutoFile", () => {
 		});
 	});
 });
+
+describe("a note with no domain while it is open", () => {
+	const noDomain = (overrides: Partial<AutoContext> = {}) =>
+		context({ currentFolder: "Projects", isOpenNote: true, ...overrides }, null);
+
+	it("waits until the note is left, even when open notes are normally filed", () => {
+		expect(decideAutoFile(noDomain())).toEqual({ action: "wait-for-close" });
+	});
+	it("treats an empty property the same way", () => {
+		for (const raw of ["", "  ", [], [""]]) {
+			expect(decideAutoFile(context({ currentFolder: "Projects", isOpenNote: true }, raw))).toEqual({
+				action: "wait-for-close",
+			});
+		}
+	});
+	it("falls to the fallback as soon as it is no longer open", () => {
+		expect(decideAutoFile(noDomain({ isOpenNote: false }))).toEqual({ action: "file", targetFolder: "Inbox" });
+	});
+	it("still waits when the user also asked to skip open notes", () => {
+		const automatic = { ...createDefaultAutomatic(), enabled: true, skipOpenNote: true };
+		expect(decideAutoFile(noDomain({ automatic }))).toEqual({ action: "wait-for-close" });
+	});
+	it("does not wait for a note it would leave alone anyway", () => {
+		const automatic = { ...createDefaultAutomatic(), enabled: true, includeNoDomain: false };
+		expect(decideAutoFile(noDomain({ automatic }))).toEqual({ action: "skip", reason: "no-domain" });
+		expect(decideAutoFile(noDomain({ currentFolder: "Inbox" }))).toEqual({ action: "skip", reason: "already-there" });
+	});
+	it("does not hold back a note whose domain has been typed", () => {
+		expect(decideAutoFile(context({ isOpenNote: true }))).toMatchObject({ action: "file" });
+	});
+});

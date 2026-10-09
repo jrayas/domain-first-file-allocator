@@ -29,7 +29,7 @@ How it works, step by step:
 1. A note is checked when you change its domain property (typing it, pasting it, or using the Properties panel), when you create it, and when you open a note whose domain property is present but empty.
 2. The plugin waits for the **delay** after your last change, so a half-typed value is ignored. The delay is 2 seconds by default; the slider's first stop is **500 ms**, then 1 to 60 seconds. A newly created note waits a little longer, so a template can fill it in first.
 3. It checks the value. If it is a registered domain that is switched on and not set to *Manual only*, the note moves to that folder and the property is tidied to the folder's real spelling.
-4. If the note has **no domain** (the property is missing or empty), it goes to the fallback folder.
+4. If the note has **no domain** (the property is missing or empty), it goes to the fallback folder, but only once you **switch away from it**, never while it is open, because the domain may simply not be typed yet.
 5. If the value is not usable (not registered, switched off, Manual only, or a list of several), the note stays put and a notice says why, once per note and value. You can then register the domain, or run **File note by domain** for the full set of choices.
 6. The move is recorded, so **Undo last allocation** reverses it.
 
@@ -39,9 +39,9 @@ It is deliberately cautious: it never opens dialogues, never replaces a note, sk
 - It acts only on a value that matches a registered, **enabled** domain that is not set to *Manual only*. Unknown, disabled, multi-value and invalid values are left alone, with one notice, and no dialogue opens.
 - A **name clash** leaves the note in place and shows a notice. It never replaces or renames anything.
 - Excluded folders and the opt-out property are respected.
-- **Never move the open note** (off by default) holds back a note that is open in the editor, and files it once you switch to another note. Leave it off if you want the note you are typing in to move.
+- **Never move the open note** (off by default) holds back a note that is open in the editor even after you type a domain, and files it once you switch to another note. Leave it off if you want the note you are typing in to move as soon as the domain is typed. A note with **no domain** always waits until you leave it, whatever this setting says.
 - **Only file notes in the fallback folder** limits automatic filing to an inbox-style folder.
-- **Also file notes with no domain** (on by default) sends a new note, a note whose domain was removed, and a note you open whose domain property is present but empty, to the fallback folder. A note with no domain property at all is only moved when it is newly created, never just because you opened it. Turn this off if you create notes in folders where they should stay.
+- **Also file notes with no domain** (on by default) sends a new note, a note whose domain was removed, and a note you open whose domain property is present but empty, to the fallback folder. The move happens when you switch away from the note, never while you are in it. A note with no domain property at all is only moved when it is newly created, never just because you opened it. Turn this off if you create notes in folders where they should stay.
 - **Quiet moves** hides the notice for a successful automatic move. Skips and errors are still shown.
 - **Snooze** pauses automatic filing for a while. Changes made while paused are not filed afterwards, and a restart ends the snooze.
 - Each automatic move can be reversed with **Undo last allocation**, up to the undo depth you choose.

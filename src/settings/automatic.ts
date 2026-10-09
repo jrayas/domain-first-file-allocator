@@ -54,7 +54,7 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 	addToggle(
 		el,
 		"Never move the open note",
-		"A note that is open in the editor is left alone, and filed once you switch to another note.",
+		"A note that is open in the editor is left alone even after you type a domain, and filed once you switch to another note. A note with no domain always waits like this, whatever this setting says.",
 		automatic.skipOpenNote,
 		(value) => {
 			automatic.skipOpenNote = value;
@@ -74,7 +74,7 @@ export function renderAutomatic(el: HTMLElement, ctx: TabContext): void {
 	addToggle(
 		el,
 		"Also file notes with no domain",
-		"Send a new note, a note whose domain was removed, and a note you open whose domain property is present but empty, to the fallback folder. A note with no domain property at all is only moved when it is newly created. Turn this off if you create notes in folders where they should stay. Has no effect together with the option above.",
+		"Send a new note, a note whose domain was removed, and a note you open whose domain property is present but empty, to the fallback folder. The note is moved once you switch away from it, never while you are in it. A note with no domain property at all is only moved when it is newly created. Turn this off if you create notes in folders where they should stay. Has no effect together with the option above.",
 		automatic.includeNoDomain,
 		(value) => {
 			automatic.includeNoDomain = value;

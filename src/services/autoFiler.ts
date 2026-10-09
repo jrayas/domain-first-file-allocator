@@ -180,6 +180,7 @@ export class AutoFiler {
 	}
 
 	private async fire(file: TFile, attempt: number): Promise<void> {
+		this.waitingForClose.delete(file);
 		const { automatic } = this.host.getSettings();
 		if (this.disposed || !automatic.enabled || this.host.isSnoozed()) {
 			return;

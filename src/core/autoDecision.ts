@@ -14,7 +14,7 @@ export type AutoSkipReason =
 
 export type AutoDecision =
 	| { action: "skip"; reason: AutoSkipReason }
-	/** The note is open in the editor and the user asked for open notes to be left alone. */
+	/** The note is open in the editor and should be filed once the user moves on from it. */
 	| { action: "wait-for-close" }
 	| { action: "file"; targetFolder: string; domainValue?: string };
 
@@ -68,7 +68,11 @@ export function decideAutoFile(context: AutoContext): AutoDecision {
 	if (samePath(currentFolder, targetFolder)) {
 		return { action: "skip", reason: "already-there" };
 	}
-	if (automatic.skipOpenNote && context.isOpenNote) {
+	// A note with no domain is never moved while it is open: the domain simply has not been
+	// typed yet, and the note would vanish from under the cursor. A note with a typed domain is
+	// filed straight away, unless the user asked for open notes to be left alone.
+	const holdWhileOpen = automatic.skipOpenNote || read.kind === "missing";
+	if (holdWhileOpen && context.isOpenNote) {
 		return { action: "wait-for-close" };
 	}
 	return domainValue === undefined ? { action: "file", targetFolder } : { action: "file", targetFolder, domainValue };

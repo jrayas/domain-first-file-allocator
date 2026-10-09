@@ -158,7 +158,12 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] At 500 ms, typing a domain that starts with a shorter registered domain (for example `Areas` while typing `Areas/Finance`) can file the note early; a longer delay avoids it.
 - [ ] Setting `"delaySeconds": 0.5` in `folder.json` and pressing **Sync now** shows 500 ms. `0.2` makes the file unusable, and it is left untouched.
 - [ ] Turning automatic filing off while a note is waiting cancels the pending move.
-- [ ] Create a new note with no domain, anywhere in the vault, with **Also file notes with no domain** on (the default): after the delay plus about a second, it goes to the fallback folder, and the editor stays on it.
+- [ ] Create a new note with no domain, anywhere in the vault, with **Also file notes with no domain** on (the default), and type in it for a while: it does **not** move while you are in it.
+- [ ] Switch to another note: the new note goes to the fallback folder after the delay.
+- [ ] Create a new note, type a registered domain, and stay in it: it files straight away (unless **Never move the open note** is on, in which case it files when you leave).
+- [ ] Create a new note, switch away and back before the delay ends: it is still not moved while you are in it, and moves when you next leave.
+- [ ] Close the tab of an empty-domain note: it goes to the fallback.
+- [ ] Open a note with an empty `domain:` property: it stays while you are in it, and falls to the fallback when you switch away.
 - [ ] Turn **Also file notes with no domain** off and create another new note: nothing happens.
 - [ ] Add `domain:` (empty) to an existing note outside the fallback, then open another note and open that one again: it falls to the fallback folder.
 - [ ] Open an existing note that has **no** domain property at all: it is **not** moved.
