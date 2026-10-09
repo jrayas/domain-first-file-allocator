@@ -74,7 +74,7 @@ export function renderDomains(el: HTMLElement, ctx: TabContext, state: DomainVie
 	addHeading(el, "Domains");
 	addNote(
 		el,
-		"A domain is the full path of a folder. A domain can be on for manual filing only, on for manual and automatic filing, or off.",
+		"A domain is a folder's full path. Each can be on for manual and automatic filing, manual only, or off.",
 	);
 
 	if (settings.domains.length > 0) {
@@ -87,7 +87,7 @@ export function renderDomains(el: HTMLElement, ctx: TabContext, state: DomainVie
 
 	new Setting(el)
 		.setName("Add a domain")
-		.setDesc("Choose an existing folder. Folders already registered or excluded are not offered.")
+		.setDesc("Choose a folder that is not yet a domain.")
 		.addButton((button) =>
 			button
 				.setButtonText("Choose folder")
@@ -114,7 +114,7 @@ export function renderDomains(el: HTMLElement, ctx: TabContext, state: DomainVie
 
 	new Setting(el)
 		.setName("Add subfolders")
-		.setDesc("Choose a folder, then register its subfolders as domains in one go.")
+		.setDesc("Register the subfolders of a folder at once.")
 		.addButton((button) =>
 			button.setButtonText("Choose parent folder").onClick(() => {
 				new FolderSuggestModal(ctx.app, allFolders(ctx.app), (parent) => void addSubfolders(ctx, parent.path)).open();
@@ -177,7 +177,7 @@ function renderListControls(el: HTMLElement, ctx: TabContext, state: DomainViewS
 
 	new Setting(el)
 		.setName("Switch all shown")
-		.setDesc("Turns every domain matching the search on or off. Each can still be changed individually.")
+		.setDesc("Applies to the domains matching the search.")
 		.addButton((button) =>
 			button.setButtonText("Turn all on").onClick(() => {
 				for (const entry of visibleDomains(settings.domains, state)) {
@@ -222,10 +222,14 @@ function drawList(
 		const noteCount = counts.get(pathKey(entry.folder)) ?? 0;
 		const details = [`${noteCount} ${noteCount === 1 ? "note" : "notes"}`];
 		if (!exists) {
-			details.push("The folder no longer exists. The domain is kept in case it returns.");
+			details.push("Folder missing. Kept in case it returns.");
 		}
 
-		const row = new Setting(listEl).setName(entry.folder).setDesc(details.join(". ")).setClass("dffa-list-row");
+		const row = new Setting(listEl)
+			.setName(entry.folder)
+			.setDesc(details.join(". "))
+			.setClass("dffa-list-row")
+			.setClass("dffa-choice");
 		if (!exists) {
 			const icon = row.nameEl.createSpan({ cls: "dffa-warning-icon" });
 			setIcon(icon, "alert-triangle");

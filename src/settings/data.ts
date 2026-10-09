@@ -28,8 +28,9 @@ export function renderData(el: HTMLElement, ctx: TabContext): void {
 	new Setting(el)
 		.setName("Data folder name")
 		.setDesc(
-			`A hidden folder in the vault root that holds folder.json, a copy of these settings. Currently ${plugin.jsonSync.filePath}. Changing it writes a new file and leaves the old one behind.`,
+			`Holds folder.json, a copy of these settings. Now ${plugin.jsonSync.filePath}. Changing it leaves the old file behind.`,
 		)
+		.setClass("dffa-stacked")
 		.addText((text) =>
 			text
 				.setPlaceholder(".domain")
@@ -47,7 +48,7 @@ export function renderData(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"When the settings and the file differ",
-		"How a difference is settled. A file that cannot be read is never overwritten, whatever you choose.",
+		"A damaged file is never overwritten, whatever you choose.",
 		CONFLICT_CHOICES,
 		settings.conflictPolicy,
 		(value) => {
@@ -59,7 +60,7 @@ export function renderData(el: HTMLElement, ctx: TabContext): void {
 	new Setting(el)
 		.setName("Sync now")
 		.setDesc(
-			"Compare these settings with the data file now. Changes to hidden files are not announced, so use this after editing the file elsewhere.",
+			"Compare with the data file now. Use it after editing the file elsewhere.",
 		)
 		.addButton((button) =>
 			button.setButtonText("Sync now").onClick(async () => {
@@ -72,7 +73,7 @@ export function renderData(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"Actions Undo can reverse",
-		"Undo last allocation steps back one action at a time, up to this many. They are kept in memory only, so a restart clears them.",
+		"Undo steps back one action at a time. Kept in memory only.",
 		UNDO_CHOICES,
 		`${settings.undoDepth}` as `${UndoDepth}`,
 		(value) => {
@@ -93,7 +94,7 @@ export function renderData(el: HTMLElement, ctx: TabContext): void {
 	new Setting(el)
 		.setName("Import")
 		.setDesc(
-			"Replace these settings with a settings file. You will see what changes first, and a backup is saved before anything is replaced.",
+			"Replace these settings from a file. You see the changes first, and a backup is saved.",
 		)
 		.addButton((button) =>
 			button.setButtonText("Import").onClick(() => {
@@ -104,11 +105,11 @@ export function renderData(el: HTMLElement, ctx: TabContext): void {
 	addHeading(el, "Reset");
 	addNote(
 		el,
-		"Puts every setting back to its default, including the domain registry and excluded folders. Your notes and folders are not touched.",
+		"Puts every setting back to its default, including the domains. Your notes are not touched.",
 	);
 	new Setting(el)
 		.setName("Reset to defaults")
-		.setDesc("A backup of the current settings is saved first, so you can import it again.")
+		.setDesc("A backup is saved first.")
 		.addButton((button) =>
 			button
 				.setButtonText("Reset")

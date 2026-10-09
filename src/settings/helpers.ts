@@ -11,6 +11,9 @@ export interface TabContext {
 	redraw(): void;
 }
 
+/** A description longer than this makes its control move below the text instead of squeezing it. */
+const STACK_DESC_LENGTH = 48;
+
 export function addHeading(el: HTMLElement, name: string): Setting {
 	return new Setting(el).setName(name).setHeading();
 }
@@ -42,7 +45,7 @@ export function addChoice<T extends string>(
 	value: T,
 	onChange: (value: T) => void,
 ): Setting {
-	return new Setting(el)
+	const setting = new Setting(el)
 		.setName(name)
 		.setDesc(desc)
 		.setClass("dffa-choice")
@@ -53,6 +56,11 @@ export function addChoice<T extends string>(
 			dropdown.setValue(value);
 			dropdown.onChange((chosen) => onChange(chosen as T));
 		});
+	// With a sentence of text beside it, the dropdown goes on its own line below it.
+	if (desc.length > STACK_DESC_LENGTH) {
+		setting.setClass("dffa-stacked");
+	}
+	return setting;
 }
 
 export function addSlider(

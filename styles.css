@@ -310,3 +310,15 @@
 		max-width: none;
 	}
 }
+
+/* Text boxes and dropdowns in a stacked setting use the full line, so the text above them keeps its width. */
+.dffa-stacked .setting-item-control input[type="text"],
+.dffa-stacked .setting-item-control input[type="search"] {
+	flex: 1 1 auto;
+	width: 100%;
+	min-width: 0;
+}
+
+.dffa-stacked .setting-item-control select {
+	max-width: 100%;
+}

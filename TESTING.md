@@ -187,6 +187,8 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] On a phone the dropdown is shown and the tab list is hidden.
 - [ ] Changing a setting that redraws the tab (for example removing an excluded folder) keeps the scroll position.
 - [ ] Every control is comfortably large to tap.
+- [ ] On every tab, descriptions are one short sentence, and no text is squeezed into a narrow column: text boxes (property name, opt-out property, fallback folder, data folder, excluded folder), sliders and dropdowns with a description sit on their own full-width line below their text, at wide and narrow window sizes.
+- [ ] The Domains tab rows (folder path, note count, mode dropdown, remove button) stay readable with long folder paths, including on a phone.
 - [ ] Settings changes are saved: close and reopen settings, and restart Obsidian, and they persist.
 - [ ] Each change updates `folder.json`.
 

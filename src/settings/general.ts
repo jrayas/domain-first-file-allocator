@@ -30,7 +30,8 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 
 	new Setting(el)
 		.setName("Property name")
-		.setDesc("The frontmatter property that holds a note's domain, for example domain or area.")
+		.setDesc("The frontmatter property that holds a note's domain.")
+		.setClass("dffa-stacked")
 		.addText((text) =>
 			text
 				.setPlaceholder("domain")
@@ -46,7 +47,8 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 
 	new Setting(el)
 		.setName("Opt-out property")
-		.setDesc("A note with this property set to true is ignored entirely by the plugin.")
+		.setDesc("A note with this set to true is ignored.")
+		.setClass("dffa-stacked")
 		.addText((text) =>
 			text
 				.setPlaceholder("skip-allocator")
@@ -86,7 +88,7 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 	addToggle(
 		el,
 		"Use fallback folder",
-		"Send notes with no matching domain to the fallback folder. When off, they stay where they are.",
+		"When off, notes with no matching domain stay where they are.",
 		settings.fallback.enabled,
 		(value) => {
 			settings.fallback.enabled = value;
@@ -95,14 +97,15 @@ export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
 	);
 
 	const describeFallback = (): string => {
-		const base = "Any folder name or path. It is created when first needed.";
+		const base = "Any folder name or path. Created when first needed.";
 		return isExcluded(settings.fallback.folder, settings.excludeFolders, settings.dataFolderName)
-			? `${base} Note: this folder is excluded, so notes filed there will not be moved again.`
+			? `${base} It is excluded, so notes filed there are never moved again.`
 			: base;
 	};
 	const fallbackSetting = new Setting(el)
 		.setName("Fallback folder")
 		.setDesc(describeFallback())
+		.setClass("dffa-stacked")
 		.addText((text) =>
 			text
 				.setPlaceholder("Inbox")
@@ -145,7 +148,7 @@ function renderExclusions(el: HTMLElement, ctx: TabContext): void {
 	addHeading(el, "Excluded folders");
 	addNote(
 		el,
-		"Notes in these folders, and their subfolders, are never moved or changed. The data folder is always excluded as well.",
+		"Notes in these folders are never moved or changed. The data folder is always excluded.",
 	);
 
 	for (const folder of settings.excludeFolders) {
@@ -181,7 +184,8 @@ function renderExclusions(el: HTMLElement, ctx: TabContext): void {
 	};
 	new Setting(el)
 		.setName("Add an excluded folder")
-		.setDesc("Type a path (hidden folders such as .private work here) or choose an existing folder.")
+		.setDesc("Type a path, including hidden folders, or choose one.")
+		.setClass("dffa-stacked")
 		.addText((text) =>
 			text.setPlaceholder("Templates").onChange((value) => {
 				typed = value;

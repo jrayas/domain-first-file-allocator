@@ -20,10 +20,10 @@ const PRESET_LABELS: Record<PromptPreset, string> = {
 
 const PRESET_DESCRIPTIONS: Record<PromptPreset, string> = {
 	cautious: "Every popup asks first.",
-	balanced: "Folders are created and registered without asking. Everything else still asks.",
+	balanced: "Folders are created and registered automatically. The rest still ask.",
 	"hands-off":
-		"Unknown domains go to the fallback, the first of several domains is used, folders are created and registered, rename previews are applied, name clashes keep both notes, and hand-moved notes are updated. Replace and imports still ask.",
-	custom: "You have changed individual choices below, so they no longer match a preset.",
+		"Automates every safe popup. Unknown domains go to the fallback and clashes keep both. Replace and imports still ask.",
+	custom: "You changed individual choices below.",
 };
 
 const UNKNOWN_DOMAIN_CHOICES: readonly Choice<UnknownDomainAction>[] = [
@@ -94,7 +94,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"Unknown domain",
-		"What to do when a note's domain is not registered. A domain you switched off is never turned back on without asking.",
+		"For a domain that is not registered. A switched-off domain always asks.",
 		UNKNOWN_DOMAIN_CHOICES,
 		prompts.unknownDomain,
 		(value) => {
@@ -105,7 +105,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"Several domains in one note",
-		"A note whose domain property is a list of more than one value.",
+		"A note whose domain is a list.",
 		MULTIPLE_VALUE_CHOICES,
 		prompts.multipleValues,
 		(value) => {
@@ -116,7 +116,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"Domain folder does not exist",
-		"When adding an unknown domain whose folder has to be created first.",
+		"Adding an unknown domain whose folder is missing.",
 		CREATE_CHOICES,
 		prompts.createFolder,
 		(value) => {
@@ -127,7 +127,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"Name clash",
-		"When the destination already holds a note with the same name. Replace is only ever offered in the dialogue, never done automatically.",
+		"When the destination has a note with the same name. Replace is never automatic.",
 		CLASH_CHOICES,
 		prompts.nameClash,
 		(value) => {
@@ -140,7 +140,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"Folder is not a domain yet",
-		"When a note's folder is not registered.",
+		"When the note's folder is not registered.",
 		REGISTER_CHOICES,
 		prompts.registerFolder,
 		(value) => {
@@ -153,7 +153,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"After a domain folder is renamed or moved",
-		"The registry always follows the folder. This decides whether notes naming the old path are rewritten after a preview or straight away. Undo can reverse either.",
+		"Rewrite notes that name the old path, after a preview or straight away.",
 		PREVIEW_CHOICES,
 		prompts.renamePreview,
 		(value) => {
@@ -166,7 +166,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	addSlider(
 		el,
 		"Skip the preview below this many notes",
-		"A rename that affects fewer notes than this is applied without a preview, even when previews are on. Leave at 1 to always preview.",
+		"Smaller renames skip the preview. Leave at 1 to always preview.",
 		{ min: MIN_PREVIEW_THRESHOLD, max: MAX_PREVIEW_THRESHOLD },
 		prompts.previewThreshold,
 		(value) => {
@@ -178,7 +178,7 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	addChoice(
 		el,
 		"Note moved by hand into a domain folder",
-		"When its domain property no longer matches the folder. Notes moved within half a second of each other are handled together.",
+		"When its domain no longer matches the folder.",
 		MOVE_CHOICES,
 		settings.folderMovePrompt,
 		(value) => {
@@ -188,10 +188,10 @@ export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
 	);
 
 	addHeading(el, "Always asks");
-	addNote(el, "These are never switched off, because a mistake cannot be undone or could lose data.");
+	addNote(el, "Never switched off, because a mistake could lose data.");
 	for (const [name, desc] of [
-		["Replace an existing note", "Needs a second confirmation. The replaced note goes to the trash and undo cannot restore it."],
-		["Import settings", "Shows what will change first, and saves a backup before replacing anything."],
+		["Replace an existing note", "Needs a second confirmation. Undo cannot restore the replaced note."],
+		["Import settings", "Shows the changes first and saves a backup."],
 		["Overwrite a damaged data file", "Never done. A file that cannot be read is left untouched."],
 	] as const) {
 		const row = new Setting(el).setName(name).setDesc(desc);
