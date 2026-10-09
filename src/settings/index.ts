@@ -29,6 +29,7 @@ const TABS: readonly TabInfo[] = [
  */
 export class AllocatorSettingTab extends PluginSettingTab {
 	private active: TabId = "general";
+	private isOpen = false;
 	private readonly domainView: DomainViewState = { filter: "", sort: "path" };
 	private content: HTMLElement | null = null;
 	private tabButtons = new Map<TabId, HTMLElement>();
@@ -41,7 +42,19 @@ export class AllocatorSettingTab extends PluginSettingTab {
 		super(app, plugin);
 	}
 
+	/** Redraws the visible tab after the settings changed underneath it, for example from the data file. */
+	refreshIfOpen(): void {
+		if (this.isOpen) {
+			this.renderContent(true);
+		}
+	}
+
+	hide(): void {
+		this.isOpen = false;
+	}
+
 	display(): void {
+		this.isOpen = true;
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass("dffa-settings");

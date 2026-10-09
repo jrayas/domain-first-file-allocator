@@ -1,5 +1,5 @@
 import { Menu, Plugin, TFile } from "obsidian";
-import { createDefaultSettings, sanitiseSettings, settingsFromConfig } from "./core/defaults";
+import { createDefaultSettings, replaceSettingsInPlace, sanitiseSettings, settingsFromConfig } from "./core/defaults";
 import { UndoStack } from "./core/undoStack";
 import { Allocator } from "./services/allocator";
 import { AutoFiler } from "./services/autoFiler";
@@ -28,6 +28,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 	autoFiler!: AutoFiler;
 	newNotes!: NewNoteProperty;
 	ops!: VaultOps;
+	private settingsTab!: AllocatorSettingTab;
 	readonly guard = new MovingGuard();
 	readonly notifier = new Notifier(() => this.settings.notices);
 	readonly undoStack = new UndoStack(() => this.settings.undoDepth);
@@ -64,7 +65,8 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		this.newNotes = new NewNoteProperty(host, this.allocator);
 		this.newNotes.register(this);
 
-		this.addSettingTab(new AllocatorSettingTab(this.app, this));
+		this.settingsTab = new AllocatorSettingTab(this.app, this);
+		this.addSettingTab(this.settingsTab);
 		this.registerCommands();
 		this.registerContextMenu();
 		this.registerRibbon();
@@ -288,9 +290,16 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		await this.commitSettings();
 	}
 
+	/**
+	 * Applies a configuration from the data file. The existing settings object is updated in
+	 * place, and an open settings screen is redrawn, because the screen holds references to the
+	 * old values and would otherwise keep editing them, losing the user's next change.
+	 */
 	private async adoptFileConfig(config: ConfigFile): Promise<void> {
-		this.settings = settingsFromConfig(config, this.settings.dataFolderName);
+		const incoming = settingsFromConfig(config, this.settings.dataFolderName);
+		replaceSettingsInPlace(this.settings, incoming);
 		await this.saveData(this.settings);
 		this.refreshRibbon();
+		this.settingsTab.refreshIfOpen();
 	}
 }

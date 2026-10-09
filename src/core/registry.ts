@@ -57,7 +57,7 @@ export function deduplicateRegistry(registry: readonly DomainEntry[]): RegistryD
 	const duplicates: string[] = [];
 	for (const entry of registry) {
 		const folder = normaliseFolderPath(entry.folder);
-		const key = folder.toLowerCase();
+		const key = pathKey(folder);
 		if (key === "") {
 			continue;
 		}
@@ -166,7 +166,7 @@ export function subfoldersToAdd(
 	const chosen: string[] = [];
 	for (const raw of allFolders) {
 		const folder = normaliseFolderPath(raw);
-		const key = folder.toLowerCase();
+		const key = pathKey(folder);
 		if (key === "" || !isSameOrInside(folder, options.parent) || key === parentKey) {
 			continue;
 		}

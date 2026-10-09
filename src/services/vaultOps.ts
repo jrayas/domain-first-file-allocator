@@ -1,5 +1,5 @@
 import { TFile, TFolder, type App, type TAbstractFile } from "obsidian";
-import { folderLevels, normaliseFolderPath } from "../core/paths";
+import { folderLevels, nameKey, normaliseFolderPath } from "../core/paths";
 import type { MovingGuard } from "./movingGuard";
 
 /** Vault helpers for folders and moves. Only the Obsidian API is used, so they work on mobile. */
@@ -27,7 +27,7 @@ export class VaultOps {
 		const folders = parent.children.filter((child): child is TFolder => child instanceof TFolder);
 		return (
 			folders.find((child) => child.name === name) ??
-			folders.find((child) => child.name.toLowerCase() === name.toLowerCase()) ??
+			folders.find((child) => nameKey(child.name) === nameKey(name)) ??
 			null
 		);
 	}
@@ -38,8 +38,8 @@ export class VaultOps {
 		if (!folder) {
 			return null;
 		}
-		const lower = name.toLowerCase();
-		return folder.children.find((child) => child.name.toLowerCase() === lower) ?? null;
+		const wanted = nameKey(name);
+		return folder.children.find((child) => nameKey(child.name) === wanted) ?? null;
 	}
 
 	/**

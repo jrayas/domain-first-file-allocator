@@ -100,6 +100,25 @@ export function settingsFromConfig(config: SyncedConfig, dataFolderName: string)
 	};
 }
 
+function assignSetting<K extends keyof AllocatorSettings>(
+	target: AllocatorSettings,
+	source: AllocatorSettings,
+	key: K,
+): void {
+	target[key] = source[key];
+}
+
+/**
+ * Overwrites every setting in `target` with the value from `source`, keeping `target` as the same
+ * object. Anything that holds a reference to it (such as an open settings screen) then sees the
+ * new values instead of editing a stale copy.
+ */
+export function replaceSettingsInPlace(target: AllocatorSettings, source: AllocatorSettings): void {
+	for (const key of Object.keys(source) as (keyof AllocatorSettings)[]) {
+		assignSetting(target, source, key);
+	}
+}
+
 /**
  * Builds usable settings from whatever was found in data.json. Anything
  * missing or malformed falls back to its default.

@@ -21,9 +21,18 @@ export function normaliseFolderPath(value: string): string {
 	return segments.join("/");
 }
 
-/** A case-insensitive comparison key for a folder path. */
+/**
+ * A comparison key for a folder path: ignores case and Unicode form. The same accented name can be
+ * stored as one character (composed) or as a letter plus a combining mark (decomposed), as macOS
+ * file systems often do, and the two look identical but are not equal as plain text.
+ */
 export function pathKey(value: string): string {
-	return normaliseFolderPath(value).toLowerCase();
+	return normaliseFolderPath(value).normalize("NFC").toLowerCase();
+}
+
+/** A comparison key for a single file or folder name, ignoring case and Unicode form. */
+export function nameKey(name: string): string {
+	return name.normalize("NFC").toLowerCase();
 }
 
 export function samePath(a: string, b: string): boolean {
