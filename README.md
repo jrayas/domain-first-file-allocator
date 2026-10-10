@@ -96,6 +96,7 @@ It has been built for mobile but checked only against the desktop app so far. To
 - **No network access.** The plugin makes no web requests, has no telemetry or analytics, and shows no ads. Nothing leaves your vault.
 - **What it changes in your vault.** It moves notes between folders (using Obsidian's own file manager, so links are updated), edits the domain property in a note's frontmatter, and creates folders when needed. It never deletes a note, except that **Replace** (always confirmed first) sends the note being replaced to the trash, following your Obsidian "Deleted files" setting.
 - **Automatic filing is on by default.** Typing a domain into a note moves it for you. It only acts on domains you have registered, and every move can be undone. Switch it off on the Automatic filing tab or with the ribbon icon.
+- **It reads your vault's file list.** To count notes per domain, find the notes affected by a folder rename and find notes with an empty domain, the plugin lists the files in your vault and reads each note's domain property from Obsidian's metadata cache. This listing is read-only and happens on your device, and nothing is sent anywhere.
 - **One hidden file.** The plugin keeps a copy of its settings in `.domain/folder.json` at the root of your vault, so they can be backed up and shared. A hidden folder is not part of Obsidian's note index, so this one file is read and written through the vault adapter instead of the usual vault API. You can rename the folder on the Data and sync tab.
 
 ## Install
