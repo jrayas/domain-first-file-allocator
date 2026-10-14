@@ -4,5 +4,5 @@ main.js
 .DS_Store
 data.json
 
-# Personal plugin-building standards, kept on this machine only
-public/
+# Personal plugin-building standards, kept on this machine only. public/screen is not ignored: the README uses those images.
+public/plugin-standards/
