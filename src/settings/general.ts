@@ -1,8 +1,18 @@
-import { Notice, Setting, debounce } from "obsidian";
+import { Notice, type SettingDefinition, type SettingDefinitionPage } from "obsidian";
 import { isExcluded, normaliseFolderPath, pathKey } from "../core/paths";
 import type { NoticeLevel } from "../types";
 import { FolderSuggestModal } from "../ui/FolderSuggestModal";
-import { addChoice, addHeading, addNote, addToggle, allFolders, type Choice, type TabContext } from "./helpers";
+import {
+	allFolders,
+	choiceSetting,
+	customSetting,
+	noteSetting,
+	requireText,
+	textSetting,
+	toggleSetting,
+	type Choice,
+	type TabContext,
+} from "./helpers";
 
 const NOTICE_CHOICES: readonly Choice<NoticeLevel>[] = [
 	["all", "All notices"],
@@ -10,189 +20,139 @@ const NOTICE_CHOICES: readonly Choice<NoticeLevel>[] = [
 	["errors", "Errors only"],
 ];
 
-export function renderGeneral(el: HTMLElement, ctx: TabContext): void {
-	const { plugin } = ctx;
-	const settings = plugin.settings;
-	let persistedProperty = settings.propertyName;
+export function generalPage(ctx: TabContext): SettingDefinitionPage {
+	const settings = ctx.plugin.settings;
+	const fallbackDesc = isExcluded(settings.fallback.folder, settings.excludeFolders, settings.dataFolderName)
+		? "Any folder name or path. Created when first needed. It is excluded, so notes filed there are never moved again."
+		: "Any folder name or path. Created when first needed.";
 
-	addHeading(el, "Properties");
-	const saveText = debounce(
-		() => {
-			if (settings.propertyName !== persistedProperty) {
-				persistedProperty = settings.propertyName;
-				new Notice("Existing notes keep their old property name; only future filing uses the new one.");
-			}
-			ctx.commit();
-		},
-		700,
-		true,
-	);
-
-	new Setting(el)
-		.setName("Property name")
-		.setDesc("The frontmatter property that holds a note's domain.")
-		.setClass("dffa-stacked")
-		.addText((text) =>
-			text
-				.setValue(settings.propertyName)
-				.onChange((value) => {
-					if (value.trim() === "") {
-						return;
-					}
-					settings.propertyName = value.trim();
-					saveText();
-				}),
-		);
-
-	new Setting(el)
-		.setName("Opt-out property")
-		.setDesc("A note with this set to true is ignored.")
-		.setClass("dffa-stacked")
-		.addText((text) =>
-			text
-				.setValue(settings.optOutProperty)
-				.onChange((value) => {
-					if (value.trim() === "") {
-						return;
-					}
-					settings.optOutProperty = value.trim();
-					saveText();
-				}),
-		);
-
-	addToggle(
-		el,
-		"Write the folder's casing",
-		"Rewrite a note's domain to the folder's real capitalisation when filing.",
-		settings.writeCanonicalCasing,
-		(value) => {
-			settings.writeCanonicalCasing = value;
-			ctx.commit();
-		},
-	);
-
-	addToggle(
-		el,
-		"Add the domain property to new notes",
-		"Adds an empty domain property to each new note. A property from a template is left as it is.",
-		settings.addPropertyToNewNotes,
-		(value) => {
-			settings.addPropertyToNewNotes = value;
-			ctx.commit();
-		},
-	);
-
-	addHeading(el, "Fallback folder");
-	addToggle(
-		el,
-		"Use fallback folder",
-		"When off, notes with no matching domain stay where they are.",
-		settings.fallback.enabled,
-		(value) => {
-			settings.fallback.enabled = value;
-			ctx.commit();
-		},
-	);
-
-	const describeFallback = (): string => {
-		const base = "Any folder name or path. Created when first needed.";
-		return isExcluded(settings.fallback.folder, settings.excludeFolders, settings.dataFolderName)
-			? `${base} It is excluded, so notes filed there are never moved again.`
-			: base;
+	return {
+		type: "page",
+		name: "General",
+		desc: "Property names, the fallback folder, excluded folders and notices.",
+		items: [
+			{
+				type: "group",
+				heading: "Properties",
+				items: [
+					textSetting("Property name", "The frontmatter property that holds a note's domain.", "propertyName", {
+						validate: requireText("a property name"),
+					}),
+					textSetting("Opt-out property", "A note with this set to true is ignored.", "optOutProperty", {
+						validate: requireText("a property name"),
+					}),
+					toggleSetting(
+						"Write the folder's casing",
+						"Rewrite a note's domain to the folder's real capitalisation when filing.",
+						"writeCanonicalCasing",
+					),
+					toggleSetting(
+						"Add the domain property to new notes",
+						"Adds an empty domain property to each new note. A property from a template is left as it is.",
+						"addPropertyToNewNotes",
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "Fallback folder",
+				items: [
+					toggleSetting(
+						"Use fallback folder",
+						"When off, notes with no matching domain stay where they are.",
+						"fallback.enabled",
+					),
+					textSetting("Fallback folder", fallbackDesc, "fallback.folder", {
+						placeholder: "Inbox",
+						validate: (value) =>
+							normaliseFolderPath(value) === "" ? "Enter a folder path inside the vault." : undefined,
+					}),
+				],
+			},
+			{
+				type: "list",
+				heading: "Excluded folders",
+				emptyState: "No folders are excluded.",
+				items: settings.excludeFolders.map((folder) => excludedRow(ctx, folder)),
+			},
+			{ type: "group", items: [addExclusionRow(ctx)] },
+			{
+				type: "group",
+				heading: "Notices",
+				items: [
+					choiceSetting(
+						"Notice level",
+						"Errors are always shown. Important notices cover skips and settings changes.",
+						"notices",
+						NOTICE_CHOICES,
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "Hotkeys",
+				items: [noteSetting("Hotkeys", "The plugin sets no hotkeys. Add your own in Settings, then Hotkeys.")],
+			},
+		],
 	};
-	const fallbackSetting = new Setting(el)
-		.setName("Fallback folder")
-		.setDesc(describeFallback())
-		.setClass("dffa-stacked")
-		.addText((text) =>
-			text
-				.setPlaceholder("Inbox")
-				.setValue(settings.fallback.folder)
-				.onChange((value) => {
-					const normalised = normaliseFolderPath(value);
-					if (normalised === "") {
-						return;
-					}
-					settings.fallback.folder = normalised;
-					fallbackSetting.setDesc(describeFallback());
-					saveText();
-				}),
-		);
-
-	renderExclusions(el, ctx);
-
-	addHeading(el, "Notices");
-	addChoice(
-		el,
-		"Notice level",
-		"Errors are always shown. Important notices cover skips and settings changes.",
-		NOTICE_CHOICES,
-		settings.notices,
-		(value) => {
-			settings.notices = value;
-			ctx.commit();
-		},
-	);
-
-	addHeading(el, "Hotkeys");
-	addNote(
-		el,
-		"The plugin sets no hotkeys. Add your own in Settings, then Hotkeys.",
-	);
 }
 
-function renderExclusions(el: HTMLElement, ctx: TabContext): void {
-	const settings = ctx.plugin.settings;
-	addHeading(el, "Excluded folders");
-	addNote(
-		el,
-		"Notes in these folders are never moved or changed. The data folder is always excluded.",
-	);
-
-	for (const folder of settings.excludeFolders) {
-		new Setting(el)
-			.setName(folder)
-			.setClass("dffa-list-row")
-			.addExtraButton((button) =>
+function excludedRow(ctx: TabContext, folder: string): SettingDefinition {
+	return {
+		name: folder,
+		render: (setting) => {
+			setting.setClass("dffa-list-row");
+			setting.addExtraButton((button) =>
 				button
 					.setIcon("trash")
 					.setTooltip("Remove from exclusions")
 					.onClick(() => {
+						const settings = ctx.plugin.settings;
 						settings.excludeFolders = settings.excludeFolders.filter((f) => f !== folder);
 						ctx.commit();
 						ctx.redraw();
 					}),
 			);
-	}
-
-	let typed = "";
-	const addExclusion = (value: string): void => {
-		const normalised = normaliseFolderPath(value);
-		if (normalised === "") {
-			new Notice("Enter a folder path to exclude.");
-			return;
-		}
-		if (settings.excludeFolders.some((f) => pathKey(f) === pathKey(normalised))) {
-			new Notice(`"${normalised}" is already excluded.`);
-			return;
-		}
-		settings.excludeFolders = [...settings.excludeFolders, normalised];
-		ctx.commit();
-		ctx.redraw();
+		},
 	};
-	new Setting(el)
-		.setName("Add an excluded folder")
-		.setDesc("Type a path, including hidden folders, or choose one.")
-		.setClass("dffa-stacked")
-		.addText((text) =>
-			text.setPlaceholder("Templates").onChange((value) => {
-				typed = value;
-			}),
-		)
-		.addButton((button) => button.setButtonText("Add").onClick(() => addExclusion(typed)))
-		.addButton((button) =>
-			button.setButtonText("Choose").onClick(() => {
-				new FolderSuggestModal(ctx.app, allFolders(ctx.app), (folder) => addExclusion(folder.path)).open();
-			}),
-		);
+}
+
+function addExclusionRow(ctx: TabContext): SettingDefinition {
+	return customSetting(
+		"Add an excluded folder",
+		"Notes in excluded folders are never moved or changed, and the data folder is always excluded. Type a path, including hidden folders, or choose one.",
+		(setting) => {
+			let typed = "";
+			const addExclusion = (value: string): void => {
+				const settings = ctx.plugin.settings;
+				const normalised = normaliseFolderPath(value);
+				if (normalised === "") {
+					new Notice("Enter a folder path to exclude.");
+					return;
+				}
+				if (settings.excludeFolders.some((f) => pathKey(f) === pathKey(normalised))) {
+					new Notice(`"${normalised}" is already excluded.`);
+					return;
+				}
+				settings.excludeFolders = [...settings.excludeFolders, normalised];
+				ctx.commit();
+				ctx.redraw();
+			};
+			setting
+				.setClass("dffa-stacked")
+				.addText((text) =>
+					text.setPlaceholder("Templates").onChange((value) => {
+						typed = value;
+					}),
+				)
+				.addButton((button) => button.setButtonText("Add").onClick(() => addExclusion(typed)))
+				.addButton((button) =>
+					button.setButtonText("Choose").onClick(() => {
+						new FolderSuggestModal(ctx.app, allFolders(ctx.app), (folder) =>
+							addExclusion(folder.path),
+						).open();
+					}),
+				);
+		},
+	);
 }

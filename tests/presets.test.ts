@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createDefaultSettings } from "../src/core/defaults";
 import { createDefaultPrompts } from "../src/core/preferences";
 import { NAMED_PRESETS, applyPreset, detectPreset, type PromptState } from "../src/core/presets";
 
@@ -7,8 +8,13 @@ function state(): PromptState {
 }
 
 describe("presets", () => {
-	it("the defaults are the cautious preset", () => {
+	it("asking about everything is the cautious preset", () => {
 		expect(detectPreset(state())).toBe("cautious");
+	});
+	it("a new install reads as a custom mix, because a note moved by hand is updated without asking", () => {
+		const settings = createDefaultSettings();
+		expect(settings.folderMovePrompt).toBe("always");
+		expect(detectPreset({ prompts: settings.prompts, folderMovePrompt: settings.folderMovePrompt })).toBe("custom");
 	});
 	it("applying a preset is detected as that preset", () => {
 		for (const name of NAMED_PRESETS) {

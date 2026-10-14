@@ -1,17 +1,16 @@
-import { Notice, Setting, setIcon, type App } from "obsidian";
+import { Notice, setIcon, type App, type SettingDefinition, type SettingDefinitionPage } from "obsidian";
 import { isExcluded, parentFolder, pathKey } from "../core/paths";
 import { addDomain, isAutoAllowed, removeDomain, subfoldersToAdd } from "../core/registry";
 import type { DomainEntry } from "../types";
 import { BulkAddModal } from "../ui/BulkAddModal";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { FolderSuggestModal } from "../ui/FolderSuggestModal";
-import { addChoice, addHeading, addNote, allFolders, type Choice, type TabContext } from "./helpers";
+import { allFolders, customSetting, noteSetting, type Choice, type TabContext } from "./helpers";
 
 export type DomainSort = "path" | "status" | "registry";
 
-/** The list's search text and sort order, kept while the settings screen stays open. */
+/** The list's sort order, kept while the settings screen stays open. */
 export interface DomainViewState {
-	filter: string;
 	sort: DomainSort;
 }
 
@@ -55,71 +54,166 @@ function countNotesByFolder(app: App): Map<string, number> {
 	return counts;
 }
 
-function visibleDomains(domains: readonly DomainEntry[], state: DomainViewState): DomainEntry[] {
-	const needle = state.filter.trim().toLowerCase();
-	const shown = domains.filter((entry) => needle === "" || entry.folder.toLowerCase().includes(needle));
-	if (state.sort === "path") {
-		return [...shown].sort((a, b) => a.folder.localeCompare(b.folder));
+function sortedDomains(domains: readonly DomainEntry[], sort: DomainSort): DomainEntry[] {
+	if (sort === "path") {
+		return [...domains].sort((a, b) => a.folder.localeCompare(b.folder));
 	}
-	if (state.sort === "status") {
-		return [...shown].sort(
+	if (sort === "status") {
+		return [...domains].sort(
 			(a, b) => Number(b.enabled) - Number(a.enabled) || a.folder.localeCompare(b.folder),
 		);
 	}
-	return shown;
+	return [...domains];
 }
 
-export function renderDomains(el: HTMLElement, ctx: TabContext, state: DomainViewState): void {
-	const settings = ctx.plugin.settings;
-	addHeading(el, "Domains");
-	addNote(
-		el,
-		"A domain is a folder's full path. Each can be on for manual and automatic filing, manual only, or off.",
-	);
+export function domainsPage(ctx: TabContext, view: DomainViewState): SettingDefinitionPage {
+	const domains = ctx.plugin.settings.domains;
+	// Counting the notes in every folder reads the whole vault, so it waits until a row is drawn
+	// and happens once for the page, not once per row.
+	let counts: Map<string, number> | null = null;
+	const noteCounts = (): Map<string, number> => (counts ??= countNotesByFolder(ctx.app));
 
-	if (settings.domains.length > 0) {
-		renderListControls(el, ctx, state);
-	}
-	const listEl = el.createDiv({ cls: "dffa-domain-list" });
-	const counts = countNotesByFolder(ctx.app);
-	const renderList = (): void => drawList(listEl, ctx, state, counts, renderList);
-	renderList();
+	return {
+		type: "page",
+		name: "Domains",
+		desc: "The folders that notes can be filed into.",
+		displayValue: () => `${ctx.plugin.settings.domains.length}`,
+		items: [
+			{
+				type: "group",
+				heading: "Add domains",
+				items: [
+					noteSetting(
+						"About domains",
+						"A domain is a folder's full path. Each can be on for manual and automatic filing, manual only, or off.",
+					),
+					customSetting("Add a domain", "Choose a folder that is not yet a domain.", (setting) =>
+						setting.addButton((button) =>
+							button
+								.setButtonText("Choose folder")
+								.setCta()
+								.onClick(() => chooseDomain(ctx)),
+						),
+					),
+					customSetting("Add subfolders", "Register the subfolders of a folder at once.", (setting) =>
+						setting.addButton((button) =>
+							button.setButtonText("Choose parent folder").onClick(() => {
+								new FolderSuggestModal(
+									ctx.app,
+									allFolders(ctx.app),
+									(parent) => void addSubfolders(ctx, parent.path),
+								).open();
+							}),
+						),
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "Order and bulk changes",
+				visible: () => ctx.plugin.settings.domains.length > 0,
+				items: [
+					customSetting("Sort", "", (setting) =>
+						setting.addDropdown((dropdown) => {
+							for (const [value, label] of SORT_CHOICES) {
+								dropdown.addOption(value, label);
+							}
+							dropdown.setValue(view.sort);
+							dropdown.onChange((value) => {
+								view.sort = value as DomainSort;
+								ctx.redraw();
+							});
+						}),
+					),
+					customSetting("Switch all domains", "Applies to every domain in the list.", (setting) =>
+						setting
+							.addButton((button) =>
+								button.setButtonText("Turn all on").onClick(() => void switchAll(ctx, true)),
+							)
+							.addButton((button) =>
+								button.setButtonText("Turn all off").onClick(() => void switchAll(ctx, false)),
+							),
+					),
+				],
+			},
+			{
+				type: "list",
+				heading: "Registered domains",
+				emptyState: "No domains yet. Add one above.",
+				search: {
+					placeholder: "Filter domains",
+					match: (definition, query) => definition.name.toLowerCase().includes(query.trim().toLowerCase()),
+				},
+				items: sortedDomains(domains, view.sort).map((entry) => domainRow(ctx, view, entry, noteCounts)),
+			},
+		],
+	};
+}
 
-	new Setting(el)
-		.setName("Add a domain")
-		.setDesc("Choose a folder that is not yet a domain.")
-		.addButton((button) =>
-			button
-				.setButtonText("Choose folder")
-				.setCta()
-				.onClick(() => {
-					const registered = new Set(settings.domains.map((d) => pathKey(d.folder)));
-					const choices = allFolders(ctx.app).filter(
-						(folder) =>
-							!registered.has(pathKey(folder.path)) &&
-							!isExcluded(folder.path, settings.excludeFolders, settings.dataFolderName),
-					);
-					new FolderSuggestModal(ctx.app, choices, (folder) => {
-						const result = addDomain(settings.domains, folder.path);
-						if (!result.ok) {
-							new Notice(result.reason);
-							return;
-						}
-						settings.domains = result.registry;
+function domainRow(
+	ctx: TabContext,
+	view: DomainViewState,
+	entry: DomainEntry,
+	noteCounts: () => Map<string, number>,
+): SettingDefinition {
+	return {
+		name: entry.folder,
+		render: (setting) => {
+			const exists = ctx.plugin.ops.findFolder(entry.folder) !== null;
+			const noteCount = noteCounts().get(pathKey(entry.folder)) ?? 0;
+			const details = [`${noteCount} ${noteCount === 1 ? "note" : "notes"}`];
+			if (!exists) {
+				details.push("Folder missing. Kept in case it returns.");
+			}
+			setting.setDesc(details.join(". ")).setClass("dffa-list-row").setClass("dffa-choice");
+			if (!exists) {
+				const icon = setting.nameEl.createSpan({ cls: "dffa-warning-icon" });
+				setIcon(icon, "alert-triangle");
+				setting.nameEl.prepend(icon);
+			}
+			setting
+				.addDropdown((dropdown) => {
+					for (const [value, label] of MODE_CHOICES) {
+						dropdown.addOption(value, label);
+					}
+					dropdown.setValue(modeOf(entry));
+					dropdown.onChange((value) => {
+						applyMode(entry, value as DomainMode);
 						ctx.commit();
-						ctx.redraw();
-					}).open();
-				}),
-		);
+						// Only the "enabled first" order changes with a domain's mode.
+						if (view.sort === "status") {
+							ctx.redraw();
+						}
+					});
+				})
+				.addExtraButton((button) =>
+					button
+						.setIcon("trash")
+						.setTooltip("Remove domain")
+						.onClick(() => void confirmRemove(ctx, entry.folder)),
+				);
+		},
+	};
+}
 
-	new Setting(el)
-		.setName("Add subfolders")
-		.setDesc("Register the subfolders of a folder at once.")
-		.addButton((button) =>
-			button.setButtonText("Choose parent folder").onClick(() => {
-				new FolderSuggestModal(ctx.app, allFolders(ctx.app), (parent) => void addSubfolders(ctx, parent.path)).open();
-			}),
-		);
+function chooseDomain(ctx: TabContext): void {
+	const settings = ctx.plugin.settings;
+	const registered = new Set(settings.domains.map((d) => pathKey(d.folder)));
+	const choices = allFolders(ctx.app).filter(
+		(folder) =>
+			!registered.has(pathKey(folder.path)) &&
+			!isExcluded(folder.path, settings.excludeFolders, settings.dataFolderName),
+	);
+	new FolderSuggestModal(ctx.app, choices, (folder) => {
+		const result = addDomain(settings.domains, folder.path);
+		if (!result.ok) {
+			new Notice(result.reason);
+			return;
+		}
+		settings.domains = result.registry;
+		ctx.commit();
+		ctx.redraw();
+	}).open();
 }
 
 async function addSubfolders(ctx: TabContext, parent: string): Promise<void> {
@@ -150,108 +244,31 @@ async function addSubfolders(ctx: TabContext, parent: string): Promise<void> {
 	new Notice(`Added ${added} ${added === 1 ? "domain" : "domains"}.`);
 }
 
-function renderListControls(el: HTMLElement, ctx: TabContext, state: DomainViewState): void {
-	const settings = ctx.plugin.settings;
-	const redrawList = (): void => ctx.redraw();
-
-	new Setting(el)
-		.setName("Search")
-		.addSearch((search) => {
-			search
-				.setPlaceholder("Filter domains")
-				.setValue(state.filter)
-				.onChange((value) => {
-					state.filter = value;
-					// Redraw only the list, so the search box keeps focus.
-					const list = el.querySelector<HTMLElement>(".dffa-domain-list");
-					if (list) {
-						drawList(list, ctx, state, countNotesByFolder(ctx.app), () => undefined);
-					}
-				});
-		});
-
-	addChoice(el, "Sort", "", SORT_CHOICES, state.sort, (value) => {
-		state.sort = value;
-		redrawList();
-	});
-
-	new Setting(el)
-		.setName("Switch all shown")
-		.setDesc("Applies to the domains matching the search.")
-		.addButton((button) =>
-			button.setButtonText("Turn all on").onClick(() => {
-				for (const entry of visibleDomains(settings.domains, state)) {
-					entry.enabled = true;
-				}
-				ctx.commit();
-				ctx.redraw();
-			}),
-		)
-		.addButton((button) =>
-			button.setButtonText("Turn all off").onClick(() => {
-				for (const entry of visibleDomains(settings.domains, state)) {
-					entry.enabled = false;
-				}
-				ctx.commit();
-				ctx.redraw();
-			}),
-		);
-}
-
-function drawList(
-	listEl: HTMLElement,
-	ctx: TabContext,
-	state: DomainViewState,
-	counts: Map<string, number>,
-	rerender: () => void,
-): void {
-	const settings = ctx.plugin.settings;
-	listEl.empty();
-	if (settings.domains.length === 0) {
-		listEl.createEl("p", { cls: "dffa-muted", text: "No domains yet. Add one below." });
+/** Switches every domain on or off, after asking, because it changes the whole list at once. */
+async function switchAll(ctx: TabContext, enabled: boolean): Promise<void> {
+	const domains = ctx.plugin.settings.domains;
+	const affected = domains.filter((entry) => entry.enabled !== enabled).length;
+	if (affected === 0) {
+		new Notice(enabled ? "Every domain is already on." : "Every domain is already off.");
 		return;
 	}
-	const shown = visibleDomains(settings.domains, state);
-	if (shown.length === 0) {
-		listEl.createEl("p", { cls: "dffa-muted", text: `No domains match "${state.filter}".` });
+	const confirmed = await new ConfirmModal(ctx.app, {
+		title: enabled ? "Turn all domains on?" : "Turn all domains off?",
+		lines: [
+			`${affected} ${affected === 1 ? "domain" : "domains"} will be switched ${enabled ? "on" : "off"}.`,
+			"Folders and notes are not changed.",
+		],
+		confirmText: enabled ? "Turn all on" : "Turn all off",
+		destructive: false,
+	}).ask();
+	if (!confirmed) {
 		return;
 	}
-
-	for (const entry of shown) {
-		const exists = ctx.plugin.ops.findFolder(entry.folder) !== null;
-		const noteCount = counts.get(pathKey(entry.folder)) ?? 0;
-		const details = [`${noteCount} ${noteCount === 1 ? "note" : "notes"}`];
-		if (!exists) {
-			details.push("Folder missing. Kept in case it returns.");
-		}
-
-		const row = new Setting(listEl)
-			.setName(entry.folder)
-			.setDesc(details.join(". "))
-			.setClass("dffa-list-row")
-			.setClass("dffa-choice");
-		if (!exists) {
-			const icon = row.nameEl.createSpan({ cls: "dffa-warning-icon" });
-			setIcon(icon, "alert-triangle");
-			row.nameEl.prepend(icon);
-		}
-		row.addDropdown((dropdown) => {
-			for (const [value, label] of MODE_CHOICES) {
-				dropdown.addOption(value, label);
-			}
-			dropdown.setValue(modeOf(entry));
-			dropdown.onChange((value) => {
-				applyMode(entry, value as DomainMode);
-				ctx.commit();
-				rerender();
-			});
-		}).addExtraButton((button) =>
-			button
-				.setIcon("trash")
-				.setTooltip("Remove domain")
-				.onClick(() => void confirmRemove(ctx, entry.folder)),
-		);
+	for (const entry of ctx.plugin.settings.domains) {
+		entry.enabled = enabled;
 	}
+	ctx.commit();
+	ctx.redraw();
 }
 
 async function confirmRemove(ctx: TabContext, folder: string): Promise<void> {

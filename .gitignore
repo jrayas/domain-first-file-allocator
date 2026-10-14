@@ -3,3 +3,6 @@ main.js
 *.log
 .DS_Store
 data.json
+
+# Personal plugin-building standards, kept on this machine only
+public/

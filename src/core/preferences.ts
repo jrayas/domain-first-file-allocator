@@ -243,7 +243,7 @@ export function createDefaultGeneral(): GeneralPreferences {
 		notices: "all",
 		optOutProperty: OPT_OUT_PROPERTY,
 		writeCanonicalCasing: true,
-		addPropertyToNewNotes: false,
+		addPropertyToNewNotes: true,
 		conflictPolicy: "newest",
 		undoDepth: 1,
 	};
@@ -277,7 +277,9 @@ export function parseGeneral(source: Source): Parsed<GeneralPreferences> {
 			notices: pickEnum(source, "notices", NOTICE_LEVELS, defaults.notices, errors),
 			optOutProperty,
 			writeCanonicalCasing: pickBoolean(source, "writeCanonicalCasing", defaults.writeCanonicalCasing, errors),
-			addPropertyToNewNotes: pickBoolean(source, "addPropertyToNewNotes", defaults.addPropertyToNewNotes, errors),
+			// New installs have it on. Saved data or a file that lacks the key was written before the
+			// setting existed, when new notes were left alone, so it stays off for them.
+			addPropertyToNewNotes: pickBoolean(source, "addPropertyToNewNotes", false, errors),
 			conflictPolicy: pickEnum(source, "conflictPolicy", CONFLICT_POLICIES, defaults.conflictPolicy, errors),
 			undoDepth,
 		},

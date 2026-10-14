@@ -32,8 +32,10 @@ export function createDefaultSettings(now: Date = new Date()): AllocatorSettings
 		updatedAt: now.toISOString(),
 		propertyName: "domain",
 		fallback: { enabled: true, folder: "Inbox" },
-		excludeFolders: ["Templates", DEFAULT_DATA_FOLDER],
-		folderMovePrompt: "ask",
+		// The data folder is always excluded as well, so it needs no entry here.
+		excludeFolders: ["Templates"],
+		// A note moved by hand into a domain folder has its domain updated to match, without asking.
+		folderMovePrompt: "always",
 		automatic: createDefaultAutomatic(),
 		prompts: createDefaultPrompts(),
 		...createDefaultGeneral(),

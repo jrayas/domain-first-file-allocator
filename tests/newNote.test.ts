@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultSettings } from "../src/core/defaults";
+import { createDefaultSettings, sanitiseSettings } from "../src/core/defaults";
 import { parseConfigJson, serialiseConfig } from "../src/core/jsonSchema";
 import { configsEqual } from "../src/core/merge";
 import {
@@ -61,8 +61,13 @@ describe("new note timing", () => {
 });
 
 describe("the add-property setting", () => {
-	it("is off by default", () => {
-		expect(createDefaultSettings().addPropertyToNewNotes).toBe(false);
+	it("is on by default for a new install", () => {
+		expect(createDefaultSettings().addPropertyToNewNotes).toBe(true);
+		expect(sanitiseSettings(null).addPropertyToNewNotes).toBe(true);
+	});
+	it("stays off for saved settings written before it existed", () => {
+		expect(sanitiseSettings({ propertyName: "domain" }).addPropertyToNewNotes).toBe(false);
+		expect(sanitiseSettings({ addPropertyToNewNotes: true }).addPropertyToNewNotes).toBe(true);
 	});
 	it("round-trips through the settings file", () => {
 		const settings = createDefaultSettings(new Date("2026-10-07T12:00:00.000Z"));
@@ -98,7 +103,7 @@ describe("the add-property setting", () => {
 	});
 	it("counts as a difference when syncing", () => {
 		const a = createDefaultSettings();
-		const b = { ...a, addPropertyToNewNotes: true };
+		const b = { ...a, addPropertyToNewNotes: false };
 		expect(configsEqual(a, b)).toBe(false);
 	});
 });

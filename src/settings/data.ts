@@ -1,10 +1,10 @@
-import { Notice, Setting, debounce } from "obsidian";
+import { Notice, type SettingDefinitionPage } from "obsidian";
 import { parseConfigJson } from "../core/jsonSchema";
 import { summariseChanges } from "../core/merge";
 import { normaliseFolderPath } from "../core/paths";
 import type { ConflictPolicy, UndoDepth } from "../types";
 import { ConfirmModal } from "../ui/ConfirmModal";
-import { addChoice, addHeading, addNote, type Choice, type TabContext } from "./helpers";
+import { choiceSetting, customSetting, noteSetting, textSetting, type Choice, type TabContext } from "./helpers";
 
 const CONFLICT_CHOICES: readonly Choice<ConflictPolicy>[] = [
 	["newest", "The most recently changed side wins"],
@@ -19,104 +19,103 @@ const UNDO_CHOICES: readonly Choice<`${UndoDepth}`>[] = [
 	["10", "The last 10 actions"],
 ];
 
-export function renderData(el: HTMLElement, ctx: TabContext): void {
+export function dataPage(ctx: TabContext): SettingDefinitionPage {
 	const { plugin } = ctx;
-	const settings = plugin.settings;
 
-	addHeading(el, "Data file");
-	const saveFolder = debounce(() => ctx.commit(), 700, true);
-	new Setting(el)
-		.setName("Data folder name")
-		.setDesc(
-			`Holds folder.json, a copy of these settings. Now ${plugin.jsonSync.filePath}. Changing it leaves the old file behind.`,
-		)
-		.setClass("dffa-stacked")
-		.addText((text) =>
-			text
-				.setPlaceholder(".domain")
-				.setValue(settings.dataFolderName)
-				.onChange((value) => {
-					const normalised = normaliseFolderPath(value);
-					if (normalised === "") {
-						return;
-					}
-					settings.dataFolderName = normalised;
-					saveFolder();
-				}),
-		);
-
-	addChoice(
-		el,
-		"When the settings and the file differ",
-		"A damaged file is never overwritten, whatever you choose.",
-		CONFLICT_CHOICES,
-		settings.conflictPolicy,
-		(value) => {
-			settings.conflictPolicy = value;
-			ctx.commit();
-		},
-	);
-
-	new Setting(el)
-		.setName("Sync now")
-		.setDesc(
-			"Compare with the data file now. Use it after editing the file elsewhere.",
-		)
-		.addButton((button) =>
-			button.setButtonText("Sync now").onClick(async () => {
-				await plugin.jsonSync.sync({ manual: true });
-				ctx.redraw();
-			}),
-		);
-
-	addHeading(el, "Undo");
-	addChoice(
-		el,
-		"Actions Undo can reverse",
-		"Undo steps back one action at a time. Kept in memory only.",
-		UNDO_CHOICES,
-		`${settings.undoDepth}`,
-		(value) => {
-			settings.undoDepth = Number(value) as UndoDepth;
-			ctx.commit();
-		},
-	);
-
-	addHeading(el, "Backup and restore");
-	new Setting(el)
-		.setName("Export")
-		.setDesc("Save a dated copy of these settings next to the data file.")
-		.addButton((button) =>
-			button.setButtonText("Export").onClick(() => {
-				void plugin.jsonSync.exportFreshCopy();
-			}),
-		);
-	new Setting(el)
-		.setName("Import")
-		.setDesc(
-			"Replace these settings from a file. You see the changes first, and a backup is saved.",
-		)
-		.addButton((button) =>
-			button.setButtonText("Import").onClick(() => {
-				void importFromFile(ctx);
-			}),
-		);
-
-	addHeading(el, "Reset");
-	addNote(
-		el,
-		"Puts every setting back to its default, including the domains. Your notes are not touched.",
-	);
-	new Setting(el)
-		.setName("Reset to defaults")
-		.setDesc("A backup is saved first.")
-		.addButton((button) => {
-			// mod-warning is the class the deprecated setWarning() added, and works on every version.
-			button.buttonEl.addClass("mod-warning");
-			button.setButtonText("Reset").onClick(() => {
-				void resetToDefaults(ctx);
-			});
-		});
+	return {
+		type: "page",
+		name: "Data and sync",
+		desc: "The data file, undo, backup and reset.",
+		items: [
+			{
+				type: "group",
+				heading: "Data file",
+				items: [
+					textSetting(
+						"Data folder name",
+						`Holds folder.json, a copy of these settings. Now ${plugin.jsonSync.filePath}. Changing it leaves the old file behind.`,
+						"dataFolderName",
+						{
+							placeholder: ".domain",
+							validate: (value) =>
+								normaliseFolderPath(value) === "" ? "Enter a folder name inside the vault." : undefined,
+						},
+					),
+					choiceSetting(
+						"When the settings and the file differ",
+						"A damaged file is never overwritten, whatever you choose.",
+						"conflictPolicy",
+						CONFLICT_CHOICES,
+					),
+					customSetting(
+						"Sync now",
+						"Compare with the data file now. Use it after editing the file elsewhere.",
+						(setting) =>
+							setting.addButton((button) =>
+								button.setButtonText("Sync now").onClick(async () => {
+									await plugin.jsonSync.sync({ manual: true });
+									ctx.redraw();
+								}),
+							),
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "Undo",
+				items: [
+					choiceSetting(
+						"Actions Undo can reverse",
+						"Undo steps back one action at a time. Kept in memory only.",
+						"undoDepth",
+						UNDO_CHOICES,
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "Backup and restore",
+				items: [
+					customSetting("Export", "Save a dated copy of these settings next to the data file.", (setting) =>
+						setting.addButton((button) =>
+							button.setButtonText("Export").onClick(() => {
+								void plugin.jsonSync.exportFreshCopy();
+							}),
+						),
+					),
+					customSetting(
+						"Import",
+						"Replace these settings from a file. You see the changes first, and a backup is saved.",
+						(setting) =>
+							setting.addButton((button) =>
+								button.setButtonText("Import").onClick(() => {
+									void importFromFile(ctx);
+								}),
+							),
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "Reset",
+				items: [
+					noteSetting(
+						"About reset",
+						"Puts every setting back to its default, including the domains. Your notes are not touched.",
+					),
+					customSetting("Reset to defaults", "A backup is saved first.", (setting) =>
+						setting.addButton((button) => {
+							// mod-warning is the class the deprecated setWarning() added, and works on every version.
+							button.buttonEl.addClass("mod-warning");
+							button.setButtonText("Reset").onClick(() => {
+								void resetToDefaults(ctx);
+							});
+						}),
+					),
+				],
+			},
+		],
+	};
 }
 
 /** Asks the user for a JSON file using the platform's own file picker (works on mobile). */

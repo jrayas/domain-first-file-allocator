@@ -12,7 +12,7 @@ Areas/Finance/2026/
 Areas/Health/
 Projects/Finance/        (a second folder called "Finance", elsewhere)
 Templates/
-Inbox/                   (leave it out to test on-demand creation)
+Inbox/                   (leave it out: the plugin creates it when Obsidian starts)
 ```
 
 In settings, register `Areas/Finance`, `Areas/Finance/2026` and `Areas/Health`. Do not register `Projects/Finance`.
@@ -100,7 +100,7 @@ Give three notes `domain: Areas/Finance`, one `domain: Areas/Finance/2026`, and 
 
 ## Manual note moves
 
-- [ ] Set the prompt to **Ask**. Drag a note with `domain: Inbox` into `Areas/Health`: a small dialogue offers **Update**, **Skip** and **Don't ask again**.
+- [ ] The default for a fresh install is **Always update**: a note dragged into a domain folder gets its domain rewritten with no dialogue, and Undo reverses it. Set the prompt to **Ask**, then drag a note with `domain: Inbox` into `Areas/Health`: a small dialogue offers **Update**, **Skip** and **Don't ask again**.
 - [ ] **Update** rewrites the property.
 - [ ] **Skip** does nothing.
 - [ ] **Don't ask again** sets the prompt to Never.
@@ -131,7 +131,7 @@ Give three notes `domain: Areas/Finance`, one `domain: Areas/Finance/2026`, and 
 
 On a fresh install automatic filing is **on**, and **Never move the open note** is **off**. Test that first, then turn it off for the "off" checks.
 
-- [ ] On a fresh install (no saved settings), the ribbon icon is highlighted and the Automatic filing tab shows it on.
+- [ ] On a fresh install (no saved settings), the ribbon icon is highlighted and the Automatic filing page shows it on.
 - [ ] With `domain: Areas/Finance` registered, typing that value into the open note moves it after about the delay, with the editor staying on the note and no command run.
 - [ ] Typing a value that is not registered leaves the note, and one notice says it is not a registered domain. Changing the value again to another unknown one gives one more notice; repeating the same one does not.
 - [ ] A value set to Manual only, or switched off, gives a matching one-time notice.
@@ -181,25 +181,29 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 
 ## Settings screen
 
-- [ ] Five tabs are listed down the left: General, Domains, Prompts and confirmations, Automatic filing, Data and sync.
-- [ ] Selecting a tab shows it, highlights it, and scrolls back to the top.
-- [ ] Widen and narrow the window: below about 700 pixels the tab list becomes a dropdown above the content, and the dropdown switches tabs.
-- [ ] On a phone the dropdown is shown and the tab list is hidden.
-- [ ] Changing a setting that redraws the tab (for example removing an excluded folder) keeps the scroll position.
-- [ ] Every control is comfortably large to tap.
-- [ ] On every tab, descriptions are one short sentence, and no text is squeezed into a narrow column: text boxes (property name, opt-out property, fallback folder, data folder, excluded folder), sliders and dropdowns with a description sit on their own full-width line below their text, at wide and narrow window sizes.
-- [ ] The Domains tab rows (folder path, note count, mode dropdown, remove button) stay readable with long folder paths, including on a phone.
-- [ ] Settings changes are saved: close and reopen settings, and restart Obsidian, and they persist.
-- [ ] Each change updates `folder.json`.
+Test on Obsidian 1.13.1 or later. The plugin's `minAppVersion` is 1.13.1, because the settings use Obsidian's declarative settings API.
 
-### General tab
+- [ ] Settings, Domain First File Allocator lists five pages: General, Domains, Prompts and confirmations, Automatic filing, Data and sync. Each opens, and going back returns to the list.
+- [ ] Obsidian's settings search finds this plugin's settings. Search for each of: "property name", "fallback", "excluded", "notice", "domain", "popup", "name clash", "automatic", "delay", "snooze", "undo", "sync", "export", "reset". Each shows the matching setting, and selecting it opens the right page.
+- [ ] The page list shows a summary on Domains (the number of domains), Prompts and confirmations (the preset name) and Automatic filing (On or Off).
+- [ ] Every setting shows its name and its description, including the rows with buttons (Sync now, Export, Import, Reset, Add a domain, Add subfolders, Snooze).
+- [ ] Changing a setting that redraws the page (for example removing an excluded folder) does not throw you back to the top.
+- [ ] Typing in a text box (property name, opt-out property, fallback folder, data folder) does not lose focus or the cursor while you type. An empty value shows a message and is not saved.
+- [ ] Every control is comfortably large to tap.
+- [ ] The Domains page rows (folder path, note count, mode dropdown, remove button) stay readable with long folder paths, including on a phone.
+- [ ] Settings changes are saved: close and reopen settings, and restart Obsidian, and they persist. A text change made just before closing the settings screen is still saved.
+- [ ] Each change updates `folder.json`.
+- [ ] Edit `folder.json` by hand while a settings page is open, then use **Sync now** (or switch away and back): the open page shows the new values and your next change is not lost.
+- [ ] With the plugin disabled, its settings no longer appear in settings search.
+
+### General page
 
 - [ ] Changing the property name shows the "existing notes keep their old property name" notice once, after you stop typing.
 - [ ] Changing the opt-out property to `keep-out`: a note with `keep-out: true` is left alone, and `skip-allocator: true` no longer protects a note.
 - [ ] With **Write the folder's casing** off, filing a note with `domain: areas/finance` leaves the text as it is. With it on, the text becomes `Areas/Finance`.
 - [ ] A list with several values is still rewritten to the single chosen value with the option off.
 - [ ] **Use fallback folder** off: notes with no domain stay put.
-- [ ] **Add the domain property to new notes** is off by default.
+- [ ] **Add the domain property to new notes** is on by default in a fresh install, and stays as it was in an install that saved its settings earlier (and off if the saved data predates the setting).
 - [ ] With it on, create a new empty note: after about a second and a half it gains an empty domain property (`domain: ""`), with the editor still on the note.
 - [ ] With it on, create a note from a template that already has `domain:` (empty or filled, or `Domain:`): the property is left exactly as the template wrote it, and the file is not rewritten.
 - [ ] With it on, create a note from a template that does not have the property: the property is added alongside the template's own.
@@ -208,21 +212,27 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] With it on together with automatic filing, a new note gets its empty property and falls to the fallback folder; typing a domain then moves it.
 - [ ] Changing the property name to `area` adds `area` to new notes from then on.
 - [ ] Setting the fallback to an excluded folder shows the note in its description.
+- [ ] Fresh install with no `Inbox` folder: after Obsidian starts, `Inbox` exists in the file explorer. With **Use fallback folder** off, none is created.
+- [ ] Switching **Use fallback folder** on creates the folder at once.
+- [ ] Change the fallback name to `Unsorted` and close the settings: `Unsorted` is created, and the old folder and its notes are left alone. Typing the name does not create folders for the half-typed text.
+- [ ] If a file (not a folder) named `Inbox` exists, an error notice says the folder could not be created, and nothing else changes.
+- [ ] **Reset to defaults** recreates `Inbox` if it is missing.
+- [ ] A fresh install lists only `Templates` under excluded folders. The data folder (`.domain`) is not listed, but its files are still never moved or changed.
 - [ ] Excluded folders can be added by typing (including a hidden folder) or by picker, and removed.
 - [ ] **Notice level**: *All notices* shows everything. *Important only* hides routine confirmations such as "Moved note". *Errors only* shows only errors.
 - [ ] With *Errors only*, a name clash or a settings sync change shows no notice, but a failure (for example a malformed `folder.json`) still does.
 - [ ] The Hotkeys note is present, and the commands can be given hotkeys in Settings, Hotkeys.
 
-### Domains tab
+### Domains page
 
 - [ ] The list shows each domain with its note count.
 - [ ] A domain whose folder was deleted shows a warning icon and an explanation.
-- [ ] The search box filters as you type and keeps keyboard focus.
+- [ ] The search box above the list filters the domains by folder path as you type and keeps keyboard focus. An empty list reads "No domains yet. Add one above."
 - [ ] Sort by path, enabled first and order added each reorder the list.
 - [ ] Each domain's mode can be set to **Manual and automatic**, **Manual only** or **Off**.
 - [ ] **Off**: filing by domain treats it as unknown.
 - [ ] **Manual only**: File note by domain still works, but automatic filing never moves a note to it.
-- [ ] **Turn all on** and **Turn all off** act only on the domains matching the search.
+- [ ] **Turn all on** and **Turn all off** ask for confirmation, say how many domains will change, and act on every domain in the list. Cancelling changes nothing. With nothing to change they say so.
 - [ ] **Add a domain** opens a searchable picker that does not offer registered or excluded folders.
 - [ ] **Add subfolders**: pick a parent folder and see the list of subfolders to add.
 - [ ] In the bulk-add dialogue, ticking the nested option adds deeper levels, and excluded or registered folders are never listed.
@@ -230,9 +240,10 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] Adding reports how many domains were added.
 - [ ] Removing a domain asks first, and leaves the folder and notes alone.
 
-### Prompts and confirmations tab
+### Prompts and confirmations page
 
-- [ ] The default preset reads **Cautious**.
+- [ ] A fresh install reads **Custom** (a note moved by hand is updated without asking). Choosing **Cautious** sets it to ask. Changing the preset updates the other dropdowns on the page straight away.
+- [ ] The **Skip the preview below this many notes** slider shows its value beside it.
 - [ ] Choosing **Balanced** sets folder creation and registration to automatic, and leaves the rest on ask.
 - [ ] Choosing **Hands-off** sets unknown domain to the fallback, several domains to the first, rename preview to automatic, name clash to keep both, and note moved by hand to always update.
 - [ ] Changing any single choice makes the preset read **Custom**; choosing a preset again restores it.
@@ -249,11 +260,11 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] The **Always asks** list explains that Replace, Import and overwriting a damaged data file are never switched off.
 - [ ] Whatever the settings, Replace still needs its second confirmation, and Import still shows the summary.
 
-### Automatic filing tab
+### Automatic filing page
 
 - [ ] The toggle and the ribbon icon stay in step.
-- [ ] The Automatic filing tab is short and scannable: each setting has one sentence of text, in groups headed Automatic filing, What to file, While you work and Snooze.
-- [ ] The delay slider sits on its own line below its text, spans the width, and the text above it keeps its full width, at wide and narrow window sizes.
+- [ ] The Automatic filing page is short and scannable: each setting has one sentence of text, in groups headed Automatic filing, What to file, While you work and Snooze.
+- [ ] The delay slider shows its value beside it ("500 ms" at the first stop, then "1 second", "10 seconds" and so on), including at wide and narrow window sizes.
 - [ ] The delay slider changes how long a note waits (try 1 and 10 seconds).
 - [ ] **Never move the open note**: with it on, a note open in the editor is not moved until you switch to another note; then it is filed. With it off, it is filed straight away.
 - [ ] **Only file notes in the fallback folder**: a note elsewhere is never moved automatically; a note in the fallback folder is.
@@ -265,7 +276,7 @@ On a fresh install automatic filing is **on**, and **Never move the open note** 
 - [ ] Right-click the ribbon icon: the menu offers on/off, snooze and resume as appropriate.
 - [ ] A restart ends a snooze.
 
-### Data and sync tab
+### Data and sync page
 
 - [ ] Changing the data folder name writes a new file there and leaves the old one.
 - [ ] **Actions Undo can reverse**: at 5, file three notes in turn and press Undo three times; each reverses the latest remaining action, and the notice says how many earlier actions remain.
@@ -281,7 +292,7 @@ Do these in a clean test vault, after the feature checklists above. Copy `main.j
 ### Install and lifecycle
 - [ ] A fresh install enables with no error in the developer console (see the console checks below).
 - [ ] Open Settings, Community plugins: the plugin shows its name, version, author and description from the manifest.
-- [ ] Disable, then enable, the plugin five times in a row: no console errors, and no duplicate commands, ribbon icons, settings tabs or notices.
+- [ ] Disable, then enable, the plugin five times in a row: no console errors, and no duplicate commands, ribbon icons, settings pages or notices.
 - [ ] After disabling: the ribbon icon is gone, the commands are gone from the palette, the file-menu items are gone, and moving or renaming notes does nothing.
 - [ ] Reload Obsidian without restarting (Ctrl/Cmd+R): the plugin loads again with the same settings.
 - [ ] Disable the plugin while a dialogue is open, and during automatic filing: no errors, and no later moves.
@@ -292,13 +303,13 @@ Do these in a clean test vault, after the feature checklists above. Copy `main.j
 ### Appearance
 - [ ] The settings screen, dialogues and ribbon icon look right in the default light theme and the default dark theme.
 - [ ] The same in at least one popular community theme (for example Minimal, Things or AnuPpuccin).
-- [ ] Nothing uses a fixed colour that disappears in a theme: warning icons, the highlighted ribbon icon, the preview lists and the tab list are all readable.
+- [ ] Nothing uses a fixed colour that disappears in a theme: warning icons, the highlighted ribbon icon, and the preview lists are all readable.
 - [ ] Change the interface font size: text and buttons still fit.
 
 ### Larger vaults
 - [ ] In a vault of several thousand notes, Obsidian starts as quickly with the plugin as without it (compare the startup time with the plugin disabled).
 - [ ] Renaming a domain folder that contains hundreds of notes shows the preview, applies it, and keeps the interface responsive.
-- [ ] The Domains tab opens quickly with many domains and shows note counts.
+- [ ] The Domains page opens quickly with many domains and shows note counts.
 - [ ] Typing in a note in a large vault is not slowed by the plugin.
 - [ ] Open the developer console Performance tab, record while filing a few notes, and check there are no long tasks from the plugin.
 
@@ -317,7 +328,7 @@ Do these in a clean test vault, after the feature checklists above. Copy `main.j
 ### Developer console checks
 Open the console with Ctrl+Shift+I (Windows and Linux) or Cmd+Option+I (macOS).
 - [ ] On the Console tab, with "Errors" and "Warnings" shown, enabling the plugin prints nothing from this plugin.
-- [ ] Run each command, open every settings tab and every dialogue, and file a note: still no errors or warnings.
+- [ ] Run each command, open every settings page and every dialogue, and file a note: still no errors or warnings.
 - [ ] Run `app.plugins.plugins["domain-first-file-allocator"]` and check it is an object while enabled and `undefined` after disabling.
 - [ ] Run `app.plugins.disablePlugin("domain-first-file-allocator")` then `app.plugins.enablePlugin("domain-first-file-allocator")` a few times: no errors.
 - [ ] On the Sources or Memory tab, take a heap snapshot, disable and re-enable the plugin several times, take another, and check the plugin's objects do not pile up.
@@ -369,13 +380,13 @@ Copy the plugin folder into the vault on the device, or sync it, and enable it.
 - [ ] Typing in the Rename field works with the on-screen keyboard, and Enter submits.
 - [ ] The folder picker opens, searches and selects.
 - [ ] Settings toggles, dropdown and trash buttons are easy to tap.
-- [ ] The settings categories appear as a dropdown at the top, and choosing one switches the tab.
+- [ ] The settings pages open one at a time in Obsidian's phone layout, and the back control returns to the page list.
 - [ ] The domain mode dropdowns, the search box and the sliders are usable with a finger.
-- [ ] On a phone, dropdown settings (for example on the Prompts tab) put the dropdown on its own full-width line below the text.
+- [ ] On a phone, the dropdown settings (for example on the Prompts and confirmations page) are readable and tappable, and the domain rows keep their dropdown on its own line below the folder name.
 - [ ] Desktop check of the phone layout: run `app.emulateMobile(true)` in the developer console and repeat the settings checks, then `app.emulateMobile(false)`.
 - [ ] The bulk-add dialogue and its list scroll and fit the screen.
 - [ ] The automatic filing icon is in the ribbon menu, toggles the mode, and shows its state.
-- [ ] Snooze can be started and ended from the Automatic filing tab, since right-click may not exist.
+- [ ] Snooze can be started and ended from the Automatic filing page, since right-click may not exist.
 - [ ] The sync conflict dialogue (policy *Ask me each time*) fits the screen and its buttons are easy to tap.
 - [ ] **Sync now** works, and the app regaining focus (switching away and back) syncs.
 - [ ] **Import** opens the device's file picker. If your platform does not offer one, note it.

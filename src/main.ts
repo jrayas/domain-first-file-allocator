@@ -73,7 +73,7 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 
 		// Hidden-file changes raise no vault events, so sync on load and on focus.
 		this.app.workspace.onLayoutReady(() => {
-			void this.jsonSync.sync();
+			void this.jsonSync.sync().then(() => this.ensureFallbackFolder());
 		});
 		this.registerDomEvent(window, "focus", () => {
 			const now = Date.now();
@@ -288,6 +288,25 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		this.resumeNow(false);
 		this.settings = { ...createDefaultSettings(), dataFolderName: this.settings.dataFolderName };
 		await this.commitSettings();
+		await this.ensureFallbackFolder();
+	}
+
+	/**
+	 * Creates the fallback folder when it is switched on and does not exist, so notes with no domain
+	 * have somewhere to go. Nothing is created when the fallback is off. An existing folder, whatever
+	 * its capitalisation, is left as it is, and a failure is reported without changing anything else.
+	 */
+	async ensureFallbackFolder(): Promise<void> {
+		const { fallback } = this.settings;
+		if (!fallback.enabled) {
+			return;
+		}
+		try {
+			await this.ops.ensureFolder(fallback.folder);
+		} catch (error) {
+			const reason = error instanceof Error ? error.message : String(error);
+			this.notifier.error(`The fallback folder "${fallback.folder}" could not be created. ${reason}`);
+		}
 	}
 
 	/**
@@ -301,5 +320,6 @@ export default class DomainFirstFileAllocatorPlugin extends Plugin {
 		await this.saveData(this.settings);
 		this.refreshRibbon();
 		this.settingsTab.refreshIfOpen();
+		await this.ensureFallbackFolder();
 	}
 }

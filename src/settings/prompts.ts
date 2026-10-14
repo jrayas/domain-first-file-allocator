@@ -1,6 +1,6 @@
-import { Setting, debounce, setIcon } from "obsidian";
+import { setIcon, type SettingDefinition, type SettingDefinitionPage } from "obsidian";
 import { MAX_PREVIEW_THRESHOLD, MIN_PREVIEW_THRESHOLD } from "../core/preferences";
-import { NAMED_PRESETS, applyPreset, detectPreset } from "../core/presets";
+import { NAMED_PRESETS, detectPreset } from "../core/presets";
 import type {
 	AskOrAuto,
 	FolderMovePrompt,
@@ -9,7 +9,7 @@ import type {
 	PromptPreset,
 	UnknownDomainAction,
 } from "../types";
-import { addChoice, addHeading, addNote, addSlider, type Choice, type TabContext } from "./helpers";
+import { choiceSetting, customSetting, sliderSetting, type Choice, type TabContext } from "./helpers";
 
 const PRESET_LABELS: Record<PromptPreset, string> = {
 	cautious: "Cautious: ask about everything",
@@ -23,7 +23,7 @@ const PRESET_DESCRIPTIONS: Record<PromptPreset, string> = {
 	balanced: "Folders are created and registered automatically. The rest still ask.",
 	"hands-off":
 		"Automates every safe popup. Unknown domains go to the fallback and clashes keep both. Replace and imports still ask.",
-	custom: "You changed individual choices below.",
+	custom: "Your own mix of the choices below.",
 };
 
 const UNKNOWN_DOMAIN_CHOICES: readonly Choice<UnknownDomainAction>[] = [
@@ -64,139 +64,120 @@ const MOVE_CHOICES: readonly Choice<FolderMovePrompt>[] = [
 	["never", "Never"],
 ];
 
-export function renderPrompts(el: HTMLElement, ctx: TabContext): void {
+/** The choices that can never be switched off, shown so the user knows they are there. */
+const LOCKED: readonly (readonly [name: string, desc: string])[] = [
+	["Replace an existing note", "Needs a second confirmation. Undo cannot restore the replaced note."],
+	["Import settings", "Shows the changes first and saves a backup."],
+	["Overwrite a damaged data file", "Never done. A file that cannot be read is left untouched."],
+];
+
+export function promptsPage(ctx: TabContext): SettingDefinitionPage {
 	const settings = ctx.plugin.settings;
-	const prompts = settings.prompts;
-
-	/** Saves a changed choice, then redraws so the preset label can follow. */
-	const changed = (): void => {
-		ctx.commit();
-		ctx.redraw();
-	};
-
-	addHeading(el, "Preset");
-	const current = detectPreset({ prompts, folderMovePrompt: settings.folderMovePrompt });
-	const presetChoices: Choice<PromptPreset>[] = NAMED_PRESETS.map((name): Choice<PromptPreset> => [name, PRESET_LABELS[name]]);
+	const current = detectPreset({ prompts: settings.prompts, folderMovePrompt: settings.folderMovePrompt });
+	// "Custom" is offered only while the choices below are a mix that matches no preset.
+	const presetChoices: Choice<PromptPreset>[] = NAMED_PRESETS.map((name): Choice<PromptPreset> => [
+		name,
+		PRESET_LABELS[name],
+	]);
 	if (current === "custom") {
 		presetChoices.push(["custom", PRESET_LABELS.custom]);
 	}
-	addChoice(el, "Popup behaviour", PRESET_DESCRIPTIONS[current], presetChoices, current, (value) => {
-		if (value === "custom") {
-			return;
-		}
-		const next = applyPreset(value, { prompts, folderMovePrompt: settings.folderMovePrompt });
-		settings.prompts = next.prompts;
-		settings.folderMovePrompt = next.folderMovePrompt;
-		changed();
-	});
 
-	addHeading(el, "File note by domain");
-	addChoice(
-		el,
-		"Unknown domain",
-		"For a domain that is not registered. A switched-off domain always asks.",
-		UNKNOWN_DOMAIN_CHOICES,
-		prompts.unknownDomain,
-		(value) => {
-			prompts.unknownDomain = value;
-			changed();
-		},
-	);
-	addChoice(
-		el,
-		"Several domains in one note",
-		"A note whose domain is a list.",
-		MULTIPLE_VALUE_CHOICES,
-		prompts.multipleValues,
-		(value) => {
-			prompts.multipleValues = value;
-			changed();
-		},
-	);
-	addChoice(
-		el,
-		"Domain folder does not exist",
-		"Adding an unknown domain whose folder is missing.",
-		CREATE_CHOICES,
-		prompts.createFolder,
-		(value) => {
-			prompts.createFolder = value;
-			changed();
-		},
-	);
-	addChoice(
-		el,
-		"Name clash",
-		"When the destination has a note with the same name. Replace is never automatic.",
-		CLASH_CHOICES,
-		prompts.nameClash,
-		(value) => {
-			prompts.nameClash = value;
-			changed();
-		},
-	);
+	return {
+		type: "page",
+		name: "Prompts and confirmations",
+		desc: "Which popups ask, and which act on their own.",
+		displayValue: () => PRESET_LABELS[currentPreset(ctx)].split(":")[0] ?? "",
+		items: [
+			{
+				type: "group",
+				heading: "Preset",
+				items: [choiceSetting("Popup behaviour", PRESET_DESCRIPTIONS[current], "prompts.preset", presetChoices)],
+			},
+			{
+				type: "group",
+				heading: "File note by domain",
+				items: [
+					choiceSetting(
+						"Unknown domain",
+						"For a domain that is not registered. A switched-off domain always asks.",
+						"prompts.unknownDomain",
+						UNKNOWN_DOMAIN_CHOICES,
+					),
+					choiceSetting(
+						"Several domains in one note",
+						"A note whose domain is a list.",
+						"prompts.multipleValues",
+						MULTIPLE_VALUE_CHOICES,
+					),
+					choiceSetting(
+						"Domain folder does not exist",
+						"Adding an unknown domain whose folder is missing.",
+						"prompts.createFolder",
+						CREATE_CHOICES,
+					),
+					choiceSetting(
+						"Name clash",
+						"When the destination has a note with the same name. Replace is never automatic.",
+						"prompts.nameClash",
+						CLASH_CHOICES,
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "Set domain from folder",
+				items: [
+					choiceSetting(
+						"Folder is not a domain yet",
+						"When the note's folder is not registered.",
+						"prompts.registerFolder",
+						REGISTER_CHOICES,
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "When folders change",
+				items: [
+					choiceSetting(
+						"After a domain folder is renamed or moved",
+						"Rewrite notes that name the old path, after a preview or straight away.",
+						"prompts.renamePreview",
+						PREVIEW_CHOICES,
+					),
+					sliderSetting(
+						"Skip the preview below this many notes",
+						"Smaller renames skip the preview. Leave at 1 to always preview.",
+						"prompts.previewThreshold",
+						{ min: MIN_PREVIEW_THRESHOLD, max: MAX_PREVIEW_THRESHOLD },
+					),
+					choiceSetting(
+						"Note moved by hand into a domain folder",
+						"When its domain no longer matches the folder.",
+						"folderMovePrompt",
+						MOVE_CHOICES,
+					),
+				],
+			},
+			{
+				type: "group",
+				heading: "Always asks",
+				items: LOCKED.map(([name, desc]) => lockedRow(name, desc)),
+			},
+		],
+	};
+}
 
-	addHeading(el, "Set domain from folder");
-	addChoice(
-		el,
-		"Folder is not a domain yet",
-		"When the note's folder is not registered.",
-		REGISTER_CHOICES,
-		prompts.registerFolder,
-		(value) => {
-			prompts.registerFolder = value;
-			changed();
-		},
-	);
+function currentPreset(ctx: TabContext): PromptPreset {
+	const { prompts, folderMovePrompt } = ctx.plugin.settings;
+	return detectPreset({ prompts, folderMovePrompt });
+}
 
-	addHeading(el, "When folders change");
-	addChoice(
-		el,
-		"After a domain folder is renamed or moved",
-		"Rewrite notes that name the old path, after a preview or straight away.",
-		PREVIEW_CHOICES,
-		prompts.renamePreview,
-		(value) => {
-			prompts.renamePreview = value;
-			changed();
-		},
-	);
-
-	const saveThreshold = debounce(() => ctx.commit(), 700, true);
-	addSlider(
-		el,
-		"Skip the preview below this many notes",
-		"Smaller renames skip the preview. Leave at 1 to always preview.",
-		{ min: MIN_PREVIEW_THRESHOLD, max: MAX_PREVIEW_THRESHOLD },
-		prompts.previewThreshold,
-		(value) => {
-			prompts.previewThreshold = value;
-			saveThreshold();
-		},
-	);
-
-	addChoice(
-		el,
-		"Note moved by hand into a domain folder",
-		"When its domain no longer matches the folder.",
-		MOVE_CHOICES,
-		settings.folderMovePrompt,
-		(value) => {
-			settings.folderMovePrompt = value;
-			changed();
-		},
-	);
-
-	addHeading(el, "Always asks");
-	addNote(el, "Never switched off, because a mistake could lose data.");
-	for (const [name, desc] of [
-		["Replace an existing note", "Needs a second confirmation. Undo cannot restore the replaced note."],
-		["Import settings", "Shows the changes first and saves a backup."],
-		["Overwrite a damaged data file", "Never done. A file that cannot be read is left untouched."],
-	] as const) {
-		const row = new Setting(el).setName(name).setDesc(desc);
-		const icon = row.nameEl.createSpan({ cls: "dffa-lock-icon" });
+function lockedRow(name: string, desc: string): SettingDefinition {
+	return customSetting(name, desc, (setting) => {
+		const icon = setting.nameEl.createSpan({ cls: "dffa-lock-icon" });
 		setIcon(icon, "lock");
-		row.nameEl.prepend(icon);
-	}
+		setting.nameEl.prepend(icon);
+	});
 }

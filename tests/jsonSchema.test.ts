@@ -121,7 +121,9 @@ describe("sanitiseSettings", () => {
 			const settings = sanitiseSettings(raw, now);
 			expect(settings.propertyName).toBe("domain");
 			expect(settings.fallback).toEqual({ enabled: true, folder: "Inbox" });
-			expect(settings.excludeFolders).toEqual(["Templates", ".domain"]);
+			expect(settings.excludeFolders).toEqual(["Templates"]);
+			expect(settings.folderMovePrompt).toBe("always");
+			expect(settings.addPropertyToNewNotes).toBe(true);
 			expect(settings.dataFolderName).toBe(".domain");
 		}
 	});
@@ -141,7 +143,7 @@ describe("sanitiseSettings", () => {
 		expect(settings.propertyName).toBe("area");
 		expect(settings.fallback).toEqual({ enabled: false, folder: "Inbox" });
 		expect(settings.excludeFolders).toEqual(["Private"]);
-		expect(settings.folderMovePrompt).toBe("ask");
+		expect(settings.folderMovePrompt).toBe("always");
 		expect(settings.domains).toEqual([{ folder: "A", enabled: true }]);
 		expect(settings.dataFolderName).toBe(".alloc");
 		expect(settings.updatedAt).toBe(now.toISOString());

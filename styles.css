@@ -79,33 +79,6 @@
 	font-weight: var(--font-semibold);
 }
 
-.dffa-settings .dffa-list-row {
-	min-height: 52px;
-}
-
-.dffa-settings .dffa-list-row .clickable-icon {
-	min-width: 44px;
-	min-height: 44px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.dffa-settings .dffa-list-row .setting-item-name {
-	overflow-wrap: anywhere;
-}
-
-.dffa-warning-icon {
-	display: inline-flex;
-	vertical-align: middle;
-	margin-right: 6px;
-	color: var(--text-warning);
-}
-
-.dffa-settings button {
-	min-height: 40px;
-}
-
 .dffa-auto-on {
 	color: var(--interactive-accent);
 	background-color: var(--background-modifier-hover);
@@ -115,65 +88,36 @@
 	color: var(--text-warning);
 }
 
-
-/* Settings screen: vertical tabs on a wide screen, a dropdown on a narrow one. */
-.dffa-layout {
-	display: flex;
-	align-items: flex-start;
-	gap: 24px;
+/*
+ * Settings screen. Obsidian lays out the pages, groups and standard controls itself, so these
+ * rules only adjust the rows this plugin draws by hand: the domain and excluded-folder lists,
+ * the lock and warning icons, and the row that adds an excluded folder.
+ */
+.dffa-list-row {
+	min-height: 52px;
 }
 
-.dffa-nav {
-	flex: 0 0 210px;
-	position: sticky;
-	top: 0;
-}
-
-.dffa-nav-list {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.dffa-nav-item {
+.dffa-list-row .clickable-icon {
+	min-width: 44px;
+	min-height: 44px;
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	width: 100%;
-	min-height: 44px;
-	padding: 8px 12px;
-	text-align: left;
-	background: transparent;
-	box-shadow: none;
-	border: none;
-	color: var(--text-muted);
-	cursor: pointer;
+	justify-content: center;
 }
 
-.dffa-nav-item:hover {
-	background: var(--background-modifier-hover);
-	color: var(--text-normal);
+.dffa-list-row .setting-item-name {
+	overflow-wrap: anywhere;
 }
 
-.dffa-nav-item.is-active {
-	background: var(--background-modifier-hover);
-	color: var(--text-normal);
-	font-weight: var(--font-semibold);
+.dffa-list-row.dffa-choice .setting-item-control select {
+	max-width: 190px;
 }
 
-.dffa-nav-icon {
+.dffa-warning-icon {
 	display: inline-flex;
-}
-
-.dffa-nav-select {
-	display: none;
-	width: 100%;
-	min-height: 44px;
-}
-
-.dffa-content {
-	flex: 1 1 auto;
-	min-width: 0;
+	vertical-align: middle;
+	margin-right: 6px;
+	color: var(--text-warning);
 }
 
 .dffa-lock-icon {
@@ -183,59 +127,7 @@
 	color: var(--text-muted);
 }
 
-.dffa-settings .dffa-domain-list .setting-item-control select {
-	max-width: 190px;
-}
-
-/* A phone, or any narrow window: the tab list becomes a dropdown above the content. */
-.is-mobile .dffa-layout {
-	flex-direction: column;
-	gap: 12px;
-}
-
-.is-mobile .dffa-nav {
-	flex: 0 0 auto;
-	position: static;
-	width: 100%;
-}
-
-.is-mobile .dffa-nav-list {
-	display: none;
-}
-
-.is-mobile .dffa-nav-select {
-	display: block;
-}
-
-@media (max-width: 700px) {
-	.dffa-layout {
-		flex-direction: column;
-		gap: 12px;
-	}
-
-	.dffa-nav {
-		flex: 0 0 auto;
-		position: static;
-		width: 100%;
-	}
-
-	.dffa-nav-list {
-		display: none;
-	}
-
-	.dffa-nav-select {
-		display: block;
-	}
-}
-
-.dffa-slider-value {
-	min-width: 6.5em;
-	margin-left: 8px;
-	text-align: right;
-	color: var(--text-muted);
-}
-
-/* A setting whose control needs room, such as a slider: the control sits on its own line below the text. */
+/* A setting whose control needs room: the control sits on its own line below the text. */
 .dffa-stacked.setting-item {
 	flex-direction: column;
 	align-items: stretch;
@@ -254,16 +146,11 @@
 	gap: 12px;
 }
 
-.dffa-stacked .setting-item-control input[type="range"] {
+.dffa-stacked .setting-item-control input[type="text"],
+.dffa-stacked .setting-item-control input[type="search"] {
 	flex: 1 1 auto;
-	width: auto;
+	width: 100%;
 	min-width: 0;
-	min-height: 32px;
-}
-
-.dffa-stacked .dffa-slider-value {
-	flex: 0 0 auto;
-	margin-left: 0;
 }
 
 /* On a narrow screen a dropdown also gets its own line, so the text above it is not squeezed. */
@@ -309,16 +196,4 @@
 		width: 100%;
 		max-width: none;
 	}
-}
-
-/* Text boxes and dropdowns in a stacked setting use the full line, so the text above them keeps its width. */
-.dffa-stacked .setting-item-control input[type="text"],
-.dffa-stacked .setting-item-control input[type="search"] {
-	flex: 1 1 auto;
-	width: 100%;
-	min-width: 0;
-}
-
-.dffa-stacked .setting-item-control select {
-	max-width: 100%;
 }

@@ -76,7 +76,10 @@ describe("parseGeneral", () => {
 	it("returns the defaults for an empty source", () => {
 		const { value, errors } = parseGeneral({});
 		expect(errors).toEqual([]);
-		expect(value).toEqual(createDefaultGeneral());
+		// A new install has "add the property to new notes" on, but data that lacks the key was
+		// written before the setting existed, so it stays off there.
+		expect(value).toEqual({ ...createDefaultGeneral(), addPropertyToNewNotes: false });
+		expect(createDefaultGeneral().addPropertyToNewNotes).toBe(true);
 		expect(value.optOutProperty).toBe("skip-allocator");
 	});
 	it("accepts each valid value", () => {
